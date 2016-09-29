@@ -1,4 +1,4 @@
-1. abrt is required
+1. abrt if needed.
 	yum install abrt-cli
 	/etc/abrt/abrt.conf
 	service abrtd start
@@ -17,5 +17,8 @@
 	kill -11 `pgrep abc'
 	ls the path in /proc/sys/kernel/core_pattern
 	
+	
+	
+If a debugger handles signals and we still want to save the core dump, let the debugger throws the signals again.
         	
 
