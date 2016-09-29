@@ -1,5 +1,18 @@
-1. abrt 
+1. abrt is required
 	yum install abrt-cli
+	/etc/abrt/abrt.conf
 	service abrtd start
+	reference: https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Deployment_Guide/ch-abrt.html
+		   https://github.com/abrt/abrt
+		   
+2. set up the core dump path
+	/proc/sys/kernel/core_pattern
+	
+	
+3. test it out
+	./abc
+	kill -11 `pgrep abc'
+	ls the path in /proc/sys/kernel/core_pattern
+	
         	
 
