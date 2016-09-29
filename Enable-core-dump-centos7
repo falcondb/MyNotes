@@ -1,0 +1,5 @@
+1. abrt 
+	yum install abrt-cli
+	service abrtd start
+        	
+
