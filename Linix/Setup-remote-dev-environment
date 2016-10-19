@@ -2,10 +2,12 @@ Install XQuartz on your working machine
 Mac as an example.
 Run XQuartz
  
-Install X11 on your remote machine
+Install X11 on your remote machine or install GNOME Desktop
 yum install -y xorg-x11-xauth xterm
 You might have to update /etc/ssh/sshd_config to enable X11 forwarding and restart ssh service. 
- 
+
+yum groups install "GNOME DESKTOP" -y
+
 SSH to remote VM
 ssh -X user@MACHINE_IP
 echo $DISPLAY
