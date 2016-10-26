@@ -1,0 +1,8 @@
+Registry certificate issue
+
+add ExecStart=/usr/bin/dockerd --insecure-registry URL.com:9000 to
+/usr/lib/systemd/system/docker.service
+
+Restart docker service
+sudo systemctl daemon-reload
+sudo service docker restart

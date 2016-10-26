@@ -1,0 +1,34 @@
+Install XQuartz on your working machine
+Mac as an example.
+Run XQuartz
+ 
+Install X11 on your remote machine or install GNOME Desktop
+yum install -y xorg-x11-xauth xterm
+You might have to update /etc/ssh/sshd_config to enable X11 forwarding and restart ssh service. 
+
+yum groups install "GNOME DESKTOP" -y
+
+SSH to remote VM
+ssh -X user@MACHINE_IP
+echo $DISPLAY
+ 
+Download IDE
+Eclipse Java/C for linux
+yum install gtk2-devel, if you see "Can't load library: /root/.swt/lib/linux/x86_64/libswt-pi-gtk.so"
+
+gedit
+yum install gedit
+
+If Eclipse does not have the C/C++ perspective, install the C/C++ plugin from Eclipse marketplace.
+Switch to C/C++ perspective
+Import a makefile project
+
+Tab to spaces
+To make the code Indentation consistant in different IDEs, you might want to set tab to spaces. http://stackoverflow.com/questions/407929/how-do-i-change-eclipse-to-use-spaces-instead-of-tabs
+
+Start IDE
+Run from the install path
+Or add the command to /usr/local/bin or your .bashrc
+ 
+To Do
+Create a script file with all the necessary steps to setup the environment as a Vagrant bootstrap file.
