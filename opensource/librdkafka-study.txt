@@ -1,0 +1,35 @@
+#### execution flow study on librdkafka ####
+
+
+rlm_kafka or rdkafka client : rd_kafka_produce -> rd_kafka_msg_new0 : place the new message into the queue
+
+rdkafka message batch send thread: rd_kafka_q_serve 
+
+rd_kafka_broker_thread_main -> rd_kafka_broker_producer_serve -> rd_kafka_toppar_producer_serve   
+	/* Attempt to fill the batch size, but limit our waiting to queue.buffering.max.ms and batch.num.messages. */
+ 	-> rd_kafka_broker_produce_toppar ->
+ 		rd_kafka_buf_push0
+ 		rd_kafka_buf_write_Message
+ 		rd_kafka_compress_MessageSet_buf
+ 		rd_kafka_broker_buf_enq_replyq
+ 			rd_kafka_broker_buf_enq2 -> rd_kafka_broker_buf_enq0 -> put in rkb->rkb_outbufs
+
+
+
+### the producer response receive service ###
+
+ rd_kafka_broker_thread_main -> rd_kafka_broker_producer_serve -> rd_kafka_broker_serve ->
+ 	rd_kafka_transport_io_serve
+ 		rd_kafka_transport_poll  -> poll
+ 		rd_kafka_transport_io_event
+ 			rd_kafka_transport_connected
+ 			rd_kafka_recv
+ 				rd_kafka_transport_recvmsg
+ 				process the received msg
+ 				rd_kafka_req_response
+ 					rd_kafka_buf_callback
+
+
+#### Main loop for Kafka handler thread  ######
+
+rd_kafka_thread_main -> 
