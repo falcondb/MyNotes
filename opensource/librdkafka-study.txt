@@ -2,11 +2,20 @@
 
 ### rd_kafka initialization ###
 rd_kafka_new
+	rd_kafka_assignors_init: topic broker assignment strategies.
 	create a thread with rd_kafka_thread_main and rd_kafka_t
-	rd_kafka_broker_add :
-		setup an instance of rd_kafka_broker_t
-		create a thread with rd_kafka_broker_thread_main and rd_kafka_broker_t
-		
+	call rd_kafka_broker_add to create a idel ??? broker thread??? See more in section ### rd_kafka_brokers_add ###
+
+
+
+
+###  Kafka handler thread ###
+
+
+
+### rd_kafka_brokers_add ###
+	setup an instance of rd_kafka_broker_t, no broker IP/port yet
+	create a thread with rd_kafka_broker_thread_main and rd_kafka_broker_t
 
 
 rlm_kafka or rdkafka client : rd_kafka_produce -> rd_kafka_msg_new0 : place the new message into the queue
@@ -91,10 +100,37 @@ rd_kafka_buf_write_kstr ; rd_kafka_buf_autopush /* pushes the write-buffer onto 
 
 
 thread 1: radiusd
-thread 2: call back thread
-thread 3: broker ops 
-thread 4: producer IO
-thread 6: call back thread
+thread 2: Kafka handle thread  call back thread
+thread 3: Kafka broker idel thead ? broker ops 
+thread 4: Kafka broker thread by IP producer IO
+thread 5: performance log
+thread 6: create by the FR health check thread, rd_kafka_new
+thread 7: create by the FR health check thread, rd_kafka_new -> rd_kafka_broker_add
+
+thread ?: created by thread #2, Kafka handle thread, rd_kafka_op_handle_Metadata, add more brokers
+
+thread 8: create by the FR health check thread, rd_kafka_new -> rd_kafka_brokers_add
+thread 9: created by thread #2, Kafka handle thread, rd_kafka_op_handle_Metadata, add more brokers
+thread 10: create by the FR health check thread, rd_kafka_brokers_add
+thread 11-12: created by thread #6, Kafka handle thread, rd_kafka_op_handle_Metadata, add more brokers
+
+
 thread 7: broker ops
 thread 8: producer IO
 thread 9: broker producer IO
+
+
+
+#### study report on Nov 10th ####
+
+### Thread management ###
+rd_kafka_new: creates 1) a Kafka handler thread thread (rd_kafka_thread_main) to handle globle messages; 2) create a idle broker thread
+rd_kafka_brokers_add: for each broker node in the pass-in, creates a thread with rd_kafka_broker_thread_main and rd_kafka_broker_t
+
+everytime rd_kafka_new() is called. rd_kafka_new() will create these threads. rd_kafka_new() does not reuse these threads.
+
+### socket management ###
+Each rd_kafka_broker_thread_main thread, create a socket fd
+
+### message parsing ###
+Any rd_kafka_broker_thread_main thread recvmsg, first parse the message len and correction ID, and then read the remained bytes. If metadata, put it on the ops queue, then handler thread will pick up and process it as a global message.
