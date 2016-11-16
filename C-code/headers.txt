@@ -1,0 +1,17 @@
+### inttypes.h ###
+inttypes defines format string conversion specifiers suitable for use within arguments to fprintf and fscanf and their ilk.
+
+### sys/queue.h ###
+defines macros for list queue operations
+
+### search.h ###
+defines hashtable
+
+### stdlib.h ###
+binary search 
+atoi
+set/getenv
+
+### unistd.h ###
+getopt
+
