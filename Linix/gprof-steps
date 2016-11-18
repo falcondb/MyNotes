@@ -1,0 +1,8 @@
+### step 1 compile the code with the profiling annotation ###
+gcc ... -pg -g3
+
+### step 2 run the program ###
+e.g., ./test
+
+### collect profiling data ###
+gprof ./test
