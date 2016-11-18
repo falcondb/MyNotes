@@ -1,0 +1,24 @@
+## interruption and signal
+sigaction
+setitimer
+ptrace
+
+## Virtual memory ##
+mprotect - set protection on a region of memory
+mtrace, muntrace - malloc tracing
+
+## IPC ##
+### socket ###
+socket()
+setsockopt()
+bind()
+listen() if TCP
+send
+sendto
+sendmsg
+SSL_write   /* SSL connection */
+
+### async monitoring ###
+select
+poll
+kqueue(kevent)
