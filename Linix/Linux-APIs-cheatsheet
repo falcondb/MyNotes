@@ -27,3 +27,12 @@ kqueue(kevent)  /* FreeBSD */
 
 ## profiling ##
 profil  (gprof toolkit)
+
+
+
+## portability ##
+### Macro ###
+_POSIX_SOURCE
+_BSD_SOURCE
+_GNU_SOURCE
+_XOPEN_SOURCE ???
