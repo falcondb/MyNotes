@@ -4,8 +4,10 @@ setitimer
 ptrace
 
 ## Virtual memory ##
+mmap brk sbrk
 mprotect - set protection on a region of memory
 mtrace, muntrace - malloc tracing
+Valgrind
 
 ## IPC ##
 ### socket ###
@@ -27,6 +29,7 @@ kqueue(kevent)  /* FreeBSD */
 
 ## profiling ##
 profil  (gprof toolkit)
+strace  trace system calls and signals
 
 
 
