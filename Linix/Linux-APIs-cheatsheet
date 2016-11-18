@@ -21,4 +21,9 @@ SSL_write   /* SSL connection */
 ### async monitoring ###
 select
 poll
-kqueue(kevent)
+epoll  /* Linux */
+kqueue(kevent)  /* FreeBSD */
+
+
+## profiling ##
+profil  (gprof toolkit)
