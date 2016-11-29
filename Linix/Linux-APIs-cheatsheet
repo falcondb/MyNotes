@@ -15,10 +15,14 @@ pthread_sigmask - examine and change mask of blocked signals
 sigprocmask, rt_sigprocmask - examine and change blocked signals
 sigpending, rt_sigpending - examine pending signals
 sigsuspend, rt_sigsuspend - wait for a signal by signal mask
-sigwait - wait for a particular signal
+sigwait - wait for a particular signal, better than signal handler
 
 sigqueue,pthread_sigqueue
 kill, killpg, tkill, tgkill
+
+setjmp, sigsetjmp, longjmp, siglongjmp  - 
+safe/restore the stack pointer, the instruction pointer, possibly the values of other registers and the signal mask
+save signal mask? Different implementations of POSIX behave differently, read the specifications.
 
 ## Virtual memory ##
 mmap brk sbrk
