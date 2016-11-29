@@ -32,6 +32,26 @@ pthread primer
 
 POSIX thread scheduling APIs
 http://man7.org/linux/man-pages/man7/sched.7.html
+Keep the CPU cache warm in multiple-CPUs system.
+
+##### Notes #######
 
 Don’t Wait for Threads
-light weight process vs thread
+
+Thread vs light weight process vs CPU assignment
+Thread owns stack and stack pointer; a program counter; some thread information, such as scheduling priority,
+and signal mask, stored in the thread structure; and the CPU registers.
+Everything else comes either from the process or (in a few cases) the LWP.
+A lightweight process can be thought of as a virtual CPU that is available for
+executing code. 
+LWPs are an implementation technique for providing kernel-level concurrency and parallelism to support the threads interface
+
+Concurrency vs parallel
+Concurrency: multiple threads on a shared CPU; parallel: multiple threads on mulitple CPUs.
+
+Context-switch triggers: Synchronization, Preemption, Yielding, Time-Slicing
+
+Preemption vs Time-Slicing
+Preemption requires a system call, so the kernel has to send the signal, which
+takes time. Finally the LWP, to which the signal is directed, has to receive it and
+run the signal handler.
