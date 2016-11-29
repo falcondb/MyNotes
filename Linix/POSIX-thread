@@ -37,6 +37,8 @@ Keep the CPU cache warm in multiple-CPUs system.
 ##### Notes #######
 
 Don’t Wait for Threads
+Avoid cancellation if at all possible
+Don't count same signal. The same signal could be filtered out in the queue of signal handle. 
 
 Thread vs light weight process vs CPU assignment
 Thread owns stack and stack pointer; a program counter; some thread information, such as scheduling priority,
@@ -57,3 +59,5 @@ takes time. Finally the LWP, to which the signal is directed, has to receive it 
 run the signal handler.
 
 Mutex is not a cancellation point, but semaphore and condition variable (suggestion: mutex clean-up in cancellation hanlder) are.
+
+Purposes of POSIX signal: error reporting, situation reporting, and interruption.
