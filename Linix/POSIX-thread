@@ -1,0 +1,37 @@
+## thread : Pthread -- Native POSIX Thread Library / LinuxThreads ##
+pthread_cancel - send a cancellation request to a thread, state: enabled/disable, type:asynchronous/deferred
+         1. Cancellation clean-up handlers are popped (reverse order pushed) and called.
+         2. Thread-specific data destructors are called
+         3. The thread is terminated. 
+         4. pthread_join
+pthread_testcancel  -  request delivery of any pending cancellation request         
+pthread_setcancelstate, pthread_setcanceltype:
+       PTHREAD_CANCEL_ENABLE, PTHREAD_CANCEL_DISABLE,  PTHREAD_CANCEL_DEFERRED, PTHREAD_CANCEL_ASYNCHRONOUS
+       
+pthread_cleanup_push,  pthread_cleanup_pop - push/pop thread cancellation clean-up handlers
+
+The calls pthread_cleanup_pop() and pthread_cleanup_push() are
+typically implemented as macros emphasizing that they must be paired (one
+push, one pop) at the same lexical level. Jumping out of the push/pop block may
+compile, but would leave the cleanup handlers on the stack. Jumping into a block
+will probably crash the program as soon as the pop is executed. Don’t do this.
+
+pthread_cleanup_push_defer_np,  pthread_cleanup_pop_restore_np - push/pop clean-up handlers, saving cancelability type, change to defer
+pthread_sigmask - examine and change mask of blocked signals
+
+pthread_barrier_wait
+
+pthread_keycreate
+pthread_get/setspecific
+
+errno is a thread-specific data
+
+thread-safe/Async-cancel-safe/Cancellation points
+http://man7.org/linux/man-pages/man7/pthreads.7.html
+pthread primer
+
+POSIX thread scheduling APIs
+http://man7.org/linux/man-pages/man7/sched.7.html
+
+Don’t Wait for Threads
+light weight process vs thread
