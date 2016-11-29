@@ -55,3 +55,5 @@ Preemption vs Time-Slicing
 Preemption requires a system call, so the kernel has to send the signal, which
 takes time. Finally the LWP, to which the signal is directed, has to receive it and
 run the signal handler.
+
+Mutex is not a cancellation point, but semaphore and condition variable (suggestion: mutex clean-up in cancellation hanlder) are.
