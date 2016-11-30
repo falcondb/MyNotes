@@ -16,6 +16,7 @@ sigprocmask, rt_sigprocmask - examine and change blocked signals
 sigpending, rt_sigpending - examine pending signals
 sigsuspend, rt_sigsuspend - wait for a signal by signal mask
 sigwait - wait for a particular signal, better than signal handler
+mq_notify - register for notification when a message is available, SIGEV_THREAD, SIGEV_SIGNAL
 
 sigqueue,pthread_sigqueue
 kill, killpg, tkill, tgkill
@@ -67,6 +68,8 @@ prctl - operations on a process
 
 ## portability ##
 ### Macro ###
+Feature test macros
+http://man7.org/linux/man-pages/man7/feature_test_macros.7.html
 _POSIX_SOURCE
 _BSD_SOURCE
 _GNU_SOURCE
