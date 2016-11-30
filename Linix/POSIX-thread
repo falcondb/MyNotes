@@ -27,6 +27,12 @@ pthread_get/setspecific
 
 errno is a thread-specific data
 
+int pthread_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void)); 
+pthread_atfork() shall declare fork handlers to be called before and after fork(), in the context of the thread that called fork(). 
+The prepare fork handler shall be called before fork() processing commences. 
+The parent fork handle shall be called after fork() processing completes in the parent process. 
+The child fork handler shall be called after fork() processing completes in the child process
+
 thread-safe/Async-cancel-safe/Cancellation points
 http://man7.org/linux/man-pages/man7/pthreads.7.html
 pthread primer
