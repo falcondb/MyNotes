@@ -18,6 +18,7 @@ will probably crash the program as soon as the pop is executed. Don’t do this.
 
 pthread_cleanup_push_defer_np,  pthread_cleanup_pop_restore_np - push/pop clean-up handlers, saving cancelability type, change to defer
 pthread_sigmask - examine and change mask of blocked signals
+pthread_kill  -  send a signal to a thread
 
 pthread_barrier_wait
 
@@ -37,8 +38,18 @@ Keep the CPU cache warm in multiple-CPUs system.
 ##### Notes #######
 
 Don’t Wait for Threads
+
 Avoid cancellation if at all possible
+
 Don't count same signal. The same signal could be filtered out in the queue of signal handle. 
+
+Designate one thread to do all of the signal handling for your program.
+There are two ways of designating a signal-handling thread. You can mask out all
+asynchronous signals on all threads but one, then let that one thread run your
+signal handlers. You can just create the thread, and then immediately have it
+block. Even though it’s sleeping, the library will still wake it up to run the signal
+handler. The other, more recommended method, is to have this one thread call
+sigwait().
 
 Thread vs light weight process vs CPU assignment
 Thread owns stack and stack pointer; a program counter; some thread information, such as scheduling priority,
