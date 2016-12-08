@@ -34,6 +34,7 @@ Valgrind
 ## IPC ##
 ### socket ###
 socket()
+domain: AF_UNIX, AF_LOCAL; AF_INET ; AF_INET6
 setsockopt()
 bind()
 listen() if TCP
@@ -41,6 +42,11 @@ send
 sendto
 sendmsg
 SSL_write   /* SSL connection */
+
+connect
+gethostbyname, getaddrinfo, getnameinfo, getaddrinfo,
+inet_addr
+
 
 ### synchronazation ###
 futex fast user-space locking, shared by mmap/shmat 
@@ -68,6 +74,23 @@ int atexit(void (*function)(void))    int on_exit(void (*function)(int , void *)
 
 _exit() terminates the calling process "immediately", no registered termination functions are called. Test Macro Requirements for glibc
 exit - cause normal process termination
+
+
+### time related ###
+set/gettimeofday   get and set the time (wall clock-time) as well as a timezone
+ __vdso_gettimeofday
+ftime, time
+http://stackoverflow.com/questions/6498972/faster-equivalent-of-gettimeofday
+
+times   current process times: 1)instructions of the calling process, 2)in the system while executing tasks on behalf of the calling process, 3) sum of the time for all waited-for terminated.
+
+clock_set/gettime    retrieve and set the time of the specified clock clk_id.
+
+Time Stamp Counter (TSC) ,   instruction RDTSC
+
+### system call ###
+vdso - overview of the virtual ELF dynamic shared object
+a small shared library that the kernel automatically maps into the address space of all user-space applications
 
 
 ## utility ##
