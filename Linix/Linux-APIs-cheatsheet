@@ -69,6 +69,7 @@ int atexit(void (*function)(void))    int on_exit(void (*function)(int , void *)
 _exit() terminates the calling process "immediately", no registered termination functions are called. Test Macro Requirements for glibc
 exit - cause normal process termination
 
+The getauxval() function retrieves values from the auxiliary vector, a mechanism that the kernel's ELF binary loader uses to pass certain information to user space when a program is executed.
 
 ## utility ##
 prctl - operations on a process
