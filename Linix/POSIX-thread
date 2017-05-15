@@ -78,3 +78,9 @@ run the signal handler.
 Mutex is not a cancellation point, but semaphore and condition variable (suggestion: mutex clean-up in cancellation hanlder) are.
 
 Purposes of POSIX signal: error reporting, situation reporting, and interruption.
+
+
+futex - fast user-space locking 
+A user-space program employs the futex() system call only when it is likely that the program has to * block for a LONGER time until the condition becomes true *.  
+Other futex() operations can be used to wake any processes or threads waiting for a particular condition.
+Glibc does not provide a wrapper for this system call; call it using syscall(2). See example of making a futex by calling syscall() here http://man7.org/linux/man-pages/man2/futex.2.html

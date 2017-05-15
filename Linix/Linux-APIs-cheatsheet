@@ -74,6 +74,7 @@ int atexit(void (*function)(void))    int on_exit(void (*function)(int , void *)
 
 _exit() terminates the calling process "immediately", no registered termination functions are called. Test Macro Requirements for glibc
 exit - cause normal process termination
+exit_group - exit all threads in a process
 
 
 ### time related ###
