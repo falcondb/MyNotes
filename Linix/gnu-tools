@@ -1,0 +1,9 @@
+Testing framework:
+
+check				Unit test
+DejaGnu				Test framework
+
+
+Performance profiling
+Gprof				performance analysis
+Gcov				Code coverage
