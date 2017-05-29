@@ -75,3 +75,9 @@ mkfs				Builds a file system on a device
 prlimit				Get and set a process' resource limits
 uuidgen
 udevadm				udev admin tool. udevd process.
+nscd				name service cache daemon
+rename				
+basename, dirname	
+modprobe			module configuration, adding, removing and etc
+bootparam			kernel command line parameters
+/proc/cmdline
