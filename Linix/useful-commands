@@ -56,7 +56,7 @@ diff sdiff			comparison between two files
 rtstat lnstat ctstat	unified linux network statistics /proc/net/stat
 rtacct				Displays the contents of /proc/net/rt_acct
 nstat netstat ss 	Shows network statistics
-tc 	
+tc
 ip
 klogd syslogd
 init halt
@@ -69,15 +69,23 @@ fdisk cfdisk
 chrt				Manipulates real-time attributes of a process
 ipcmk ipcrm ipcs	IPC ops
 logger				Enters the given message into the system log
-lsblk lscpu lsipc lslocks lslogins 
+lsblk lscpu lsipc lslocks lslogins lsof
 mesg 				Controls whether other users can send messages to the current user's terminal, mesg yes/no
 mkfs				Builds a file system on a device
 prlimit				Get and set a process' resource limits
 uuidgen
 udevadm				udev admin tool. udevd process.
 nscd				name service cache daemon
-rename				
-basename, dirname	
+rename
+basename, dirname
 modprobe			module configuration, adding, removing and etc
 bootparam			kernel command line parameters
 /proc/cmdline
+tunctl        create and manage persistent TUN/TAP interfaces
+nc
+tcpdump
+route
+arping     route cache
+dig        route cache
+ip neighbor show route cache
+mii-tool   view, manipulate media-independent interface status
