@@ -89,3 +89,7 @@ arping     route cache
 dig        route cache
 ip neighbor show route cache
 mii-tool   view, manipulate media-independent interface status
+ebtables   Ethernet bridge frame table administration
+iptables
+ip6tables
+Nmap        Network exploration tool and security / port scanner
