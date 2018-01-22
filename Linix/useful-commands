@@ -83,7 +83,7 @@ bootparam			kernel command line parameters
 /proc/cmdline
 tunctl        create and manage persistent TUN/TAP interfaces
 nc
-tcpdump
+tcpdump/traceroute 
 route
 arping     route cache
 dig        route cache
@@ -92,4 +92,6 @@ mii-tool   view, manipulate media-independent interface status
 ebtables   Ethernet bridge frame table administration
 iptables
 ip6tables
-Nmap        Network exploration tool and security / port scanner
+nmap        Network exploration tool and security / port scanner
+rpcinfo     makes an RPC call to an RPC server and reports what it finds
+journalctl  query the contents of the systemd
