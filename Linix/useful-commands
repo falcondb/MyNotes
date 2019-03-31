@@ -13,7 +13,7 @@ sprof				read and display shared object profiling data, see example on man7.org
 zic					timezone compiler, generate timezone file
 xtrace				trace communication between X11 client and server
 peekfd				fd used by a process
-pstree				process tree relationship
+pstree				process tree relationship, install psmisc
 fuser				processes of using a file
 killall				kill all processes runing with the executable file
 addr2line			VM address to symbol names
@@ -26,6 +26,7 @@ pwxd				Reports the current working directory of a process
 slabtop				Displays detailed kernel slab cache information in real time
 sysctl				Modifies kernel parameters at run time
 vmstat				Reports virtual memory statistics, giving information about processes
+mpstat        install sysstat
 w who users			Shows which users are currently logged on, where, and since when
 base32, base64
 chcon				Changes security context for files and directories
@@ -83,7 +84,7 @@ bootparam			kernel command line parameters
 /proc/cmdline
 tunctl        create and manage persistent TUN/TAP interfaces
 nc
-tcpdump/traceroute 
+tcpdump/traceroute
 route
 arping     route cache
 dig        route cache
@@ -95,3 +96,18 @@ ip6tables
 nmap        Network exploration tool and security / port scanner
 rpcinfo     makes an RPC call to an RPC server and reports what it finds
 journalctl  query the contents of the systemd
+
+tree
+
+systemd-cgls
+systemd-cgtop
+
+lssubsys
+
+cgcreate    install libcgroup
+cgclassify
+cgexec
+
+mtrace      install glibc-utils
+memusage
+memusagestat
