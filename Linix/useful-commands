@@ -111,3 +111,8 @@ cgexec
 mtrace      install glibc-utils
 memusage
 memusagestat
+
+lsblk       list block devices
+siege       An HTTP/HTTPS stress tester
+memhog
+memusage    profile memory usage of a program
