@@ -65,6 +65,7 @@ killall5			send signal to processes other than the current session
 telinit runlevel
 dmesg				Dumps the kernel boot messages
 column				table display
+colrm       remove columns from a file
 cal 				calendar
 fdisk cfdisk
 chrt				Manipulates real-time attributes of a process
