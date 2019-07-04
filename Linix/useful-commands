@@ -20,7 +20,7 @@ prtstat     print statistics of a process
 addr2line			VM address to symbol names
 shadow				/etc/password
 traceroute			Traces the route your packets
-dnsdomainname		Show DNS names
+dnsdomainname		Show DNS names in bind-utils
 free				Reports the amount of free and used physical memory
 pgrep, pidof pkill, pmap
 pwxd				Reports the current working directory of a process
