@@ -9,6 +9,8 @@ makedb				create a simple database
 mtrace				malloc tracing of a process
 pldd				display dynamic shared objects linked into a process
 sotruss				trace shared library procedure calls
+strace        trace system calls and signals
+ltrace        A library call tracer
 sprof				read and display shared object profiling data, see example on man7.org
 zic					timezone compiler, generate timezone file
 xtrace				trace communication between X11 client and server
