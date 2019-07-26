@@ -63,6 +63,7 @@ rtacct				Displays the contents of /proc/net/rt_acct
 nstat netstat ss 	Shows network statistics
 tc
 ip
+brctl       ethernet bridge administration, install package bridge-utils
 klogd syslogd
 init halt
 killall			send signal to processes other than the current session
