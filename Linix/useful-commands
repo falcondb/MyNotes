@@ -101,12 +101,14 @@ tree
 
 systemd-cgls
 systemd-cgtop
+systemd-run
 
 lssubsys
 
 cgcreate    install libcgroup
 cgclassify
 cgexec
+cgdelete
 
 mtrace      install glibc-utils
 memusage
