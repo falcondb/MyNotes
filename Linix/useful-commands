@@ -9,17 +9,20 @@ makedb				create a simple database
 mtrace				malloc tracing of a process
 pldd				display dynamic shared objects linked into a process
 sotruss				trace shared library procedure calls
+strace        trace system calls and signals
+ltrace        A library call tracer
 sprof				read and display shared object profiling data, see example on man7.org
 zic					timezone compiler, generate timezone file
 xtrace				trace communication between X11 client and server
 peekfd				fd used by a process
 pstree				process tree relationship, install psmisc
-fuser				processes of using a file
+fuser				processes of using a file, install psmisc 
 killall				kill all processes runing with the executable file
+prtstat     print statistics of a process
 addr2line			VM address to symbol names
 shadow				/etc/password
 traceroute			Traces the route your packets
-dnsdomainname		Show DNS names
+dnsdomainname		Show DNS names in bind-utils
 free				Reports the amount of free and used physical memory
 pgrep, pidof pkill, pmap
 pwxd				Reports the current working directory of a process
@@ -27,7 +30,8 @@ slabtop				Displays detailed kernel slab cache information in real time
 sysctl				Modifies kernel parameters at run time
 vmstat				Reports virtual memory statistics, giving information about processes
 mpstat        install sysstat
-w who users			Shows which users are currently logged on, where, and since when
+w who users id			Shows which users are currently logged on, where, and since when
+last          login history for a specific username
 base32, base64
 chcon				Changes security context for files and directories
 cksum				Prints the Cyclic Redundancy Check (CRC) checksum and the byte counts of each specified file
@@ -59,12 +63,14 @@ rtacct				Displays the contents of /proc/net/rt_acct
 nstat netstat ss 	Shows network statistics
 tc
 ip
+brctl       ethernet bridge administration, install package bridge-utils
 klogd syslogd
 init halt
-killall5			send signal to processes other than the current session
+killall			send signal to processes other than the current session
 telinit runlevel
 dmesg				Dumps the kernel boot messages
 column				table display
+colrm       remove columns from a file
 cal 				calendar
 fdisk cfdisk
 chrt				Manipulates real-time attributes of a process
@@ -113,3 +119,8 @@ cgdelete
 mtrace      install glibc-utils
 memusage
 memusagestat
+
+lsblk       list block devices
+siege       An HTTP/HTTPS stress tester
+memhog
+memusage    profile memory usage of a program
