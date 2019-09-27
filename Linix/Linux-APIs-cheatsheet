@@ -93,6 +93,7 @@ Time Stamp Counter (TSC) ,   instruction RDTSC
 vdso - overview of the virtual ELF dynamic shared object
 a small shared library that the kernel automatically maps into the address space of all user-space applications
 
+The getauxval() function retrieves values from the auxiliary vector, a mechanism that the kernel's ELF binary loader uses to pass certain information to user space when a program is executed.
 
 ## utility ##
 prctl - operations on a process

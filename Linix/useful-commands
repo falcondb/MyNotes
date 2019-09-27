@@ -1,0 +1,126 @@
+catchsegv			get backtrace after Segv
+getconf   			get value of system configuration
+getent				get entries from Name Service Switch
+iconv				convert encoding of given files from one encoding to another, ISO88592, UTF8, ASCII, etc.
+ldconfig			configure dynamic linker run-time bindings, /etc/ld.so.conf
+ldd					print shared object dependencies
+locale				description of multilanguage support
+makedb				create a simple database
+mtrace				malloc tracing of a process
+pldd				display dynamic shared objects linked into a process
+sotruss				trace shared library procedure calls
+strace        trace system calls and signals
+ltrace        A library call tracer
+sprof				read and display shared object profiling data, see example on man7.org
+zic					timezone compiler, generate timezone file
+xtrace				trace communication between X11 client and server
+peekfd				fd used by a process
+pstree				process tree relationship, install psmisc
+fuser				processes of using a file, install psmisc 
+killall				kill all processes runing with the executable file
+prtstat     print statistics of a process
+addr2line			VM address to symbol names
+shadow				/etc/password
+traceroute			Traces the route your packets
+dnsdomainname		Show DNS names in bind-utils
+free				Reports the amount of free and used physical memory
+pgrep, pidof pkill, pmap
+pwxd				Reports the current working directory of a process
+slabtop				Displays detailed kernel slab cache information in real time
+sysctl				Modifies kernel parameters at run time
+vmstat				Reports virtual memory statistics, giving information about processes
+mpstat        install sysstat
+w who users id			Shows which users are currently logged on, where, and since when
+last          login history for a specific username
+base32, base64
+chcon				Changes security context for files and directories
+cksum				Prints the Cyclic Redundancy Check (CRC) checksum and the byte counts of each specified file
+csplit				Splits a given file into several new files, separating them according to given patterns/linenum
+expand/unexpand		Converts tabs to spaces
+fold				Wraps the lines in the given files
+groups, id, hostid
+logname 			Reports the current user's login name and current user name (before su/sg)
+nl					Add line numbers to the file
+mkfifo mknod mktemp
+readlink realpath
+nice renice			Nice value
+od 					Dumps files in octal and other formats
+paste				Merges the given files, joining sequentially corresponding lines side by side, separated by tab
+uniq 				Discards all but one of successive identical lines
+seq 				Prints a sequence of numbers
+runcon				Runs a command with specified security context
+sha1sum 224 256 384 512
+sum md5sum			checksum
+timeout				Runs a command with a time limit
+shuf				Shuffles lines of text, wow
+split 				Splits the given file into pieces, by size or by number of lines
+tsort 				Performs a topological sort; it writes a completely ordered list according to the partial ordering
+yes 				Repeatedly outputs “y” or a given string until killed
+comp 				byte comparison between two files
+diff sdiff			comparison between two files
+rtstat lnstat ctstat	unified linux network statistics /proc/net/stat
+rtacct				Displays the contents of /proc/net/rt_acct
+nstat netstat ss 	Shows network statistics
+tc
+ip
+brctl       ethernet bridge administration, install package bridge-utils
+klogd syslogd
+init halt
+killall			send signal to processes other than the current session
+telinit runlevel
+dmesg				Dumps the kernel boot messages
+column				table display
+colrm       remove columns from a file
+cal 				calendar
+fdisk cfdisk
+chrt				Manipulates real-time attributes of a process
+ipcmk ipcrm ipcs	IPC ops
+logger				Enters the given message into the system log
+lsblk lscpu lsipc lslocks lslogins lsof
+mesg 				Controls whether other users can send messages to the current user's terminal, mesg yes/no
+mkfs				Builds a file system on a device
+prlimit				Get and set a process' resource limits
+uuidgen
+udevadm				udev admin tool. udevd process.
+nscd				name service cache daemon
+rename
+basename, dirname
+modprobe			module configuration, adding, removing and etc
+bootparam			kernel command line parameters
+/proc/cmdline
+tunctl        create and manage persistent TUN/TAP interfaces
+nc
+tcpdump/traceroute
+route
+arping     route cache
+dig        route cache, in pakage bind-utils
+ip neighbor show route cache
+mii-tool   view, manipulate media-independent interface status
+ebtables   Ethernet bridge frame table administration
+iptables
+ip6tables
+nmap        Network exploration tool and security / port scanner
+rpcinfo     makes an RPC call to an RPC server and reports what it finds
+journalctl  query the contents of the systemd
+
+tree
+
+systemd-cgls
+systemd-cgtop
+systemd-run
+
+lssubsys
+
+cgcreate    install libcgroup
+cgclassify
+cgexec
+cgdelete
+
+mtrace      install glibc-utils
+memusage
+memusagestat
+
+lsblk       list block devices
+siege       An HTTP/HTTPS stress tester
+memhog
+memusage    profile memory usage of a program
