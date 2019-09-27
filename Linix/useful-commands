@@ -93,7 +93,7 @@ nc
 tcpdump/traceroute
 route
 arping     route cache
-dig        route cache
+dig        route cache, in pakage bind-utils
 ip neighbor show route cache
 mii-tool   view, manipulate media-independent interface status
 ebtables   Ethernet bridge frame table administration
