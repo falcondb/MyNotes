@@ -30,8 +30,7 @@
 
 
 ### include/uapi/inux/filter.h ###
-
-
+* struct sock_filter        // BST cBPF filter
 
 
 ### /include/linux/bpf.h ###
@@ -51,11 +50,11 @@
 * struct bpf_array
 * struct bpf_event_entry
 * struct bpf_prog_array
-
+* #define __BPF_PROG_RUN_ARRAY
 
 
 ### /include/uapi/linux/bpf.h ###
-* BPF_ALU64                /* instruction classes */
+* BPF_ALU64                // instruction classes
 * struct bpf_insn {code, dst_rg:4, src_reg:4, off, imm} // BPF instruction
 * enum bpf_cmd
 * enum bpf_map_type
@@ -66,6 +65,7 @@
 * struct bpf_prog_info
 * struct bpf_map_info
 * struct bpf_btf_info
+* struct bpf_stack_build_id 
 * struct bpf_sock_addr      // another bpf_sock data structure?? TODO: usage of it
 * struct bpf_sock_ops
 * struct bpf_fib_lookup
