@@ -8,3 +8,13 @@
 
 ### net/core/dev.c ###
 * network device operations
+
+### include/linux/skmsg.h
+* sk_psock_progs
+```
+struct sk_psock_progs {
+	struct bpf_prog			*msg_parser;
+	struct bpf_prog			*skb_parser;
+	struct bpf_prog			*skb_verdict;
+};
+```

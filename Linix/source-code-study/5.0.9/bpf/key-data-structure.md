@@ -14,16 +14,18 @@
 
 * #define BPF_ALU64_REG(OP, DST, SRC)	((struct bpf_insn) {}  etc.
 
-* #define __BPF_MAP(n, ...) __BPF_MAP_##n(__VA_ARGS__)
-* #define __BPF_MAP_{0 ... 5}
-* #define __BPF_REG(n, ...) __BPF_REG_##n(__VA_ARGS__)
-* #define BPF_CALL_0 -->
+* BPF_CAL
+```#define __BPF_MAP(n, ...) __BPF_MAP_##n(__VA_ARGS__)
+ #define __BPF_MAP_{0 ... 5}
+ #define __BPF_REG(n, ...) __BPF_REG_##n(__VA_ARGS__)
+ #define BPF_CALL_0 -->
   #define BPF_CALL_x(x, name, ...)	   -->
 	u64 ____##name(__BPF_MAP(x, __BPF_DECL_ARGS, __BPF_V, __VA_ARGS__));
   u64 name(__BPF_REG(x, __BPF_DECL_REGS, __BPF_N, __VA_ARGS__))	       \
   {								       \
     return ((btf_##name)____##name)(__BPF_MAP(x,__BPF_CAST,__BPF_N,__VA_ARGS__));\
   }
+```
  // TODO: not fully understand how the helper function prototypes are generated
 
 * struct bpf_prog               // for kernel
@@ -54,8 +56,25 @@
 
 
 ### /include/uapi/linux/bpf.h ###
+* BPF Register numbers
+```
+enum {
+	BPF_REG_0 = 0,
+  ...,
+  __MAX_BPF_REG,
+  }
+```  
 * BPF_ALU64                // instruction classes
-* struct bpf_insn {code, dst_rg:4, src_reg:4, off, imm} // BPF instruction
+* bpf_insn
+```
+struct bpf_insn {
+  code,
+  dst_rg:4,
+  src_reg:4,
+  off,
+  imm
+  } // BPF instruction
+```  
 * enum bpf_cmd
 * enum bpf_map_type
 * enum bpf_prog_type
@@ -65,7 +84,7 @@
 * struct bpf_prog_info
 * struct bpf_map_info
 * struct bpf_btf_info
-* struct bpf_stack_build_id 
+* struct bpf_stack_build_id
 * struct bpf_sock_addr      // another bpf_sock data structure?? TODO: usage of it
 * struct bpf_sock_ops
 * struct bpf_fib_lookup
@@ -80,6 +99,9 @@
 * struct xdp_md
 * struct sk_msg_md
 * struct sk_reuseport_md
+
+### arch/arm64/net/bpf_jit.h
+
 
 
 ### kernel/bpf/helpers.c ###
