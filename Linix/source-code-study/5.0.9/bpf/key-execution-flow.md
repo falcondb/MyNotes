@@ -157,3 +157,18 @@ __cgroup_bpf_attach() {
 }      
   }
 ```
+
+* BPF Prog Run
+```
+BPF_PROG_RUN_ARRAY ==> __BPF_PROG_RUN_ARRAY
+_item = &_array->items[0];
+while ((_prog = READ_ONCE(_item->prog))) {		\
+  bpf_cgroup_storage_set(_item->cgroup_storage);	\
+  _ret &= func(_prog, ctx);	\
+  _item++;			\
+}
+
+#define BPF_PROG_RUN(prog, ctx)	({				\
+ (*(prog)->bpf_func)(ctx, (prog)->insnsi);	\
+	})
+```
