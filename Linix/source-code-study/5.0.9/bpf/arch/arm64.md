@@ -40,4 +40,20 @@ static __always_inline u32 aarch64_insn_get_##abbr##_value(void)	\
 
 __AARCH64_INSN_FUNCS(adr,	0x9F000000, 0x10000000) \\ insn.h
 ...
+
+```
+
+* kprobe manager
+```
+patch_text() ==> aarch64_insn_patch_text() ==> aarch64_insn_patch_text_cb() ==>
+aarch64_insn_patch_text_nosync() ==> aarch64_insn_write() ==> patch_map(); probe_kernel_write() ==>
+probe_write_common()  ==> __copy_to_user_inatomic()  ==> raw_copy_to_user() ==>
+/* arm64 */ __arch_copy_to_user()  ==> copy_touser.S
+
+__kprobes *patch_map(void *addr, int fixmap) {
+	unsigned long uintaddr = (uintptr_t) addr;
+	page = phys_to_page(__pa_symbol(addr));
+  return (void *)set_fixmap_offset(fixmap, page_to_phys(page) +
+    (uintaddr & ~PAGE_MASK));
+}
 ```

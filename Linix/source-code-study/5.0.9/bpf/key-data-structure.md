@@ -14,7 +14,7 @@
 
 * #define BPF_ALU64_REG(OP, DST, SRC)	((struct bpf_insn) {}  etc.
 
-* BPF_CAL
+* BPF_CALL_x
 ```#define __BPF_MAP(n, ...) __BPF_MAP_##n(__VA_ARGS__)
  #define __BPF_MAP_{0 ... 5}
  #define __BPF_REG(n, ...) __BPF_REG_##n(__VA_ARGS__)
@@ -29,6 +29,24 @@
  // TODO: not fully understand how the helper function prototypes are generated
 
 * struct bpf_prog               // for kernel
+```
+struct bpf_prog {
+	u16			pages;		/* Number of allocated pages */
+	u16  // different flags 			
+	enum bpf_attach_type	expected_attach_type;
+	u32			len;		/* Number of filter blocks */
+	u32			jited_len;	/* Size of jited insns in bytes */
+	u8			tag[BPF_TAG_SIZE];
+	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
+	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
+	unsigned int (*bpf_func)(const void *ctx, const struct bpf_insn *insn);
+	/* Instructions for interpreter */
+	union {
+		struct sock_filter	insns[0];
+		struct bpf_insn		insnsi[0];
+	};
+};
+```
 
 
 ### include/uapi/inux/filter.h ###

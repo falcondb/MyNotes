@@ -85,6 +85,12 @@ sock_map_get_from_fd() ==> sock_map_prog_update() {
     xchg ==> kasan_check_write;
              arch_xchg ==> __xchg_wrapper (arch/arm64/include/asm/cmpxchg.h) ==>
              __xchg_case_##name##sz : asm code
+
+    struct sk_psock_progs {
+     	struct bpf_prog			*msg_parser;
+     	struct bpf_prog			*skb_parser;
+     	struct bpf_prog			*skb_verdict;
+     };  
   */
   psock_set_prog(&progs->msg_parser, prog);
 case BPF_SK_SKB_STREAM_PARSER:
