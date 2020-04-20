@@ -500,6 +500,11 @@ kprobe_event_define_fields {
 }
 ```
 
+* kernel/events/core
+```
+
+```
+
 * arch/x86/kernel/kprobes/ftrace.c
 ```
 kprobe_ftrace_handler
