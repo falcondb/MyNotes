@@ -1,4 +1,6 @@
 # events-trace-bpf #
+[Ftrace, perf, and the tracing ABI](https://lwn.net/Articles/442113/)
+TO READ
 
 ## tracer ##
 
@@ -25,6 +27,9 @@ A brief history of eBPF and its key components, more like eBPF-101
 TO REEEEEAAAAAAAD
 
 [Tracepoints with BPF](https://lwn.net/Articles/683504/)
+READ this post, if really want to hack BPF!!!
+It explain how BPF link to events and tracefs, and the argument format of BPF call!
+[tplist](https://github.com/iovisor/bcc/blob/master/tools/tplist.py), a tool of converting tracepoint format to C struct
 
 
 [Linux Socket Filtering aka Berkeley Packet Filter](https://www.kernel.org/doc/Documentation/networking/filter.txt)
