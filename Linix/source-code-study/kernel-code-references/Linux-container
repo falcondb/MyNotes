@@ -1,0 +1,13 @@
+# Container
+
+## Namespace
+
+[Namespaces in operation, part 1: namespaces overview](https://lwn.net/Articles/531114/#series_index)
+Functionally completed at version 3.8 (2013).
+namespace-related APIs: clone(), unshare(), and setns().
+Mount namespaces isolate the set of filesystem mount points seen by a group of processes
+
+
+[User namespaces progress](https://lwn.net/Articles/528078/)
+
+[LCE: The failure of operating systems and how we can fix it](https://lwn.net/Articles/524952/)
