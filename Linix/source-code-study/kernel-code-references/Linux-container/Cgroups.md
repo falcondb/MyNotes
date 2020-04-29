@@ -5,6 +5,31 @@ A list of the cgroup series
 ***
 [Control groups, part 1: On the history of process grouping](https://lwn.net/Articles/603762/)
 
+History of the concepts of process group, job, session.
+The concept is still here in Linux
+```
+ps -axgo comm,sess,pgrp
+```
+
+[Control groups, part 2: On the different sorts of hierarchies](https://lwn.net/Articles/604413/)
+
+[Control groups, part 3: First steps to control](https://lwn.net/Articles/605039/)
+
+>net_cl and net_prio apply just to that cgroup and any sockets associated with processes in that cgroup. They do not automatically apply to sockets in processes in child cgroups.
+
+>The devices subsystem can either allow or deny all accesses by default, and then have a list of exceptions where access is denied or allowed, respectively.
+
+>In freezer subsystem, the whole group of processes from a subgroup is stopped or restarted
+
+>The perf_event cgroup subsystem interprets "within" in a fully hierarchical sense is based on an ID number that may be shared by some but not all groups in a subtree. walks up the tree from a process to find the answer.
+
+>The cpuset cgroup subsystem identifies a set of processors on which each process in a group may run, and it also identifies a set of memory nodes from which processes in a group can allocate memory.
+>
+>The cpuset propagates any changes made to a parent into all descendants when appropriate.
+
+[Control groups, part 4: On accounting](https://lwn.net/Articles/606004/)
+
+worth of reading it more, a very deep discussion
 
 ***
 [The unified control group hierarchy in 3.16](https://lwn.net/Articles/601840/)
