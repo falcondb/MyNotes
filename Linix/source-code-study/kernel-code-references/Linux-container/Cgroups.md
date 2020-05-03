@@ -31,7 +31,18 @@ ps -axgo comm,sess,pgrp
 
 worth of reading it more, a very deep discussion
 
+>The memory cgroup subsystem allocates three res_counters, one for user-process memory usage, one for the sum of memory and swap usage, and one for usage of memory by the kernel on behalf of the process. Together with the one res_counter allocated by hugetlbe.
+
+>When one of the various memory resources is requested by a process, the res_counter code will walk up the parent pointers, checking if limits are reached and updating the usage at each ancestor. 
+
+>The memory controller will request that a full 32 be approved by the res_counter
+
+
+
 ***
+
+[CFS group scheduling](https://lwn.net/Articles/240474/)
+
 [The unified control group hierarchy in 3.16](https://lwn.net/Articles/601840/)
 
 [Cgroup talk by Rami Rosen](https://www.youtube.com/watch?v=zMJD8PJKoYQ). RIP, Rami!
