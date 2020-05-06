@@ -127,3 +127,20 @@ A *peer group* is a set of mount points that propagate mount and unmount events 
 
 ***
 [Linux capabilities support for user namespaces](https://lwn.net/Articles/420624/)
+
+***
+[Anatomy of a user namespaces vulnerability](https://lwn.net/Articles/543273/)
+[CVE-2013-1858](https://nvd.nist.gov/vuln/detail/CVE-2013-1858)
+[Code](https://lwn.net/Articles/543509/)
+
+Fixed by 3.8.3 and 3.9, disallow the combination of CLONE_NEWUSER and CLONE_FS
+
+The execution diagram clearly explain the procedure of the privildge exploit.
+The key idea is:
+* In the new userspace with the clone fs, replace your program which grants you priviledge role with 
+a shared lib will be linked to a set-user-ID-root program.
+* Execute the set-user-ID-root program in the original namespace, and the hacked shared lib will be linked
+and executed with priviledge capability in the original namespace. 
+The target program in the orignal namespace in turn gain the priviledge capablity.
+
+

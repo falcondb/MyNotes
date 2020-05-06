@@ -39,7 +39,23 @@ worth of reading it more, a very deep discussion
 
 [Control groups, part 5: The cgroup hierarchy](https://lwn.net/Articles/606699/)
 
+>To understand it we need at least a brief introduction to Network Traffic Control (NTC). The NTC mechanism is managed by the tc program. This tool allows a "queueing discipline" (or "qdisc") to be attached to each network interface. Some qdiscs are "classful" and these can have other qdiscs attached beneath them, one for each "class" of packet. If any of these secondary qdiscs are also classful, a further level is possible, and so on. This implies that there can be a hierarchy of qdiscs, or several hierarchies, one for each network interface.
 
+[Control groups, part 6: A look under the hood](https://lwn.net/Articles/606925/)
+
+Deep discussions about the implementation of cgroup hierarchy with processes (thrend groups).
+
+How to reduce the combinatorial explosion of cgroup hierarchy and processes.
+
+The locking on the processes (thrend groups) when updating their cgroups
+
+Cgroup linkage to reduce the combinatorial explosion
+
+>We had a reminder that terminology can be challenging, and that we should be careful when interpreting what we read in the kernel code
+
+>Locking can be tricky. It is generally best to avoid requiring locks where possible, and doing so is easier when the data structures are simple and elegant.
+
+>the combinatorial explosion we were concerned about is unavoidable. cgroup_cset_links are created automatically, rather than requiring mkdir requests, so possibly having a proliferation of links is cheaper than a proliferation of cgroups. Rather than being concerned about a proliferation, we could instead be concerned about the size of cgroups and what mechanisms could be used to create cgroups automatically.
 
 ***
 
@@ -62,6 +78,37 @@ worth of reading it more, a very deep discussion
 [Schedulers: the plot thickens](https://lwn.net/Articles/230574/)
 
 [The unified control group hierarchy in 3.16](https://lwn.net/Articles/601840/)
+
+
+>The unified hierarchy can be instantiated alongside older hierarchies, but controllers cannot be shared between the unified hierarchy and any others.
+
+>In Cgroup v1, controllers are attached to control groups by specifying options to the mount command that creates the hierarchy. In the unified hierarchy world, instead, all controllers are [Control group hierarchy]attached to the root of the hierarchy
+
+>cgroup.controllers that lists the controllers that can be enabled for children of that group
+>cgroup.subtree_control, lists the controllers that are actually enabled
+
+>A controller can only be enabled in a specific control group if it is enabled in that group's parent; it is possible to disable a controller at a lower level
+
+>the cgroup.subtree_control file can only be used to change the set of active controllers if the associated group contains no processes
+
+>cgroup.populated; reading it will return a nonzero value if there are any processes in the group (or its descendants). By using poll() on this file, a process can be notified if a control group becomes completely empty; the process would presumably respond by cleaning up and removing the group
+
+[unified-hierarchy.txt](https://lwn.net/Articles/601923/)
+
+```
+mount -t cgroup -o __DEVEL__sane_behavior cgroup $MOUNT_POINT
+```
+>All controllers which are not bound to other hierarchies are automatically bound to unified hierarchy and show up at the root of it
+
+>cgroup.subtree_control, All cgroups on unified hierarchy have a "cgroup.subtree_control" file, which governs which controllers are enabled on the children of the cgroup.
+>When read, the file contains a space-separated list of currently enabled controllers.  A write to the file should contain a space-separated list of controllers with '+' or '-' prefixed
+
+>cgroup.controllers, Read-only "cgroup.controllers" file contains a space-separated list of controllers which can be enabled in the cgroup's "cgroup.subtree_control" file
+>>In the root cgroup, this lists controllers which are not bound to other hierarchies and the content changes as controllers are bound to and unbound from other hierarchies.
+>>In non-root cgroups, the content of this file equals that of the parent's "cgroup.subtree_control" file as only controllers enabled from the parent can be used in its children.
+
+>Except for the root, only cgroups which don't contain any task may have controllers enabled in their "cgroup.subtree_control" files.
+
 
 [Cgroup talk by Rami Rosen](https://www.youtube.com/watch?v=zMJD8PJKoYQ)
 

@@ -7,6 +7,8 @@
 
 [Linux kernel design patterns, part 3](https://lwn.net/Articles/336262/)
 
+[Ghosts of Unix Past: a historical search for design patterns](https://lwn.net/Articles/411845/)
+
 ## System Call
 
 [Anatomy of a system call, part 1](https://lwn.net/Articles/604287/)
