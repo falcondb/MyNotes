@@ -124,6 +124,17 @@ A *peer group* is a set of mount points that propagate mount and unmount events 
 ***
 [LCE: The failure of operating systems and how we can fix it](https://lwn.net/Articles/524952/)
 
+>Hypervisors
+>>Glauber chose KVM. Under KVM, the Linux kernel is itself the hypervisor. That makes sense, Glauber said, because all of the resource isolation that should be done by the hypervisor is already done by the operating system. The hypervisor has a scheduler, as does the kernel. So the idea of KVM is to simply re-use the Linux kernel's scheduler to schedule virtual machines. The hypervisor has to manage memory, as does the kernel, and so on; everything that a hypervisor does is also part of the kernel's duties.
+
+>Containers
+>>Hypervisors handle these use cases by running multiple kernel instances. But, he asked, shouldn't it be possible for a single kernel to satisfy many of these use cases?
+
+>>There's no theoretical reason why an operating system couldn't support all of these resource-isolation use cases
+
+>>the chroot() system call did not change the fact that the hierarchical relationship of the mounts in the filesystem was global to all processes. By contrast, mount namespaces allow different groups of processes to see different filesystem hierarchies.
+
+Glauber's "realistic" estimation seems very close now.
 
 ***
 [Linux capabilities support for user namespaces](https://lwn.net/Articles/420624/)

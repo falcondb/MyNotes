@@ -4,6 +4,12 @@ x# Memory Management subsystem
 [What every programmer should know about memory series on LWN.net](https://lwn.net/Articles/250967/)
 [What every programmer should know about memory PDF version](https://people.freebsd.org/~lstewart/articles/cpumemory.pdf)
 
+***
+[KS2012: The memcg/mm minisummit](https://lwn.net/Articles/516439/)
+
+***
+[Memory Management Reference](https://www.memorymanagement.org/)
+
 ## RCU
 [What is RCU, Fundamentally](https://lwn.net/Articles/262464/)
 
