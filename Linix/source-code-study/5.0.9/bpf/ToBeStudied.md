@@ -374,7 +374,8 @@ void __bpf_trace_run(struct bpf_prog *prog, u64 *args)
 int __bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
 {
 	struct tracepoint *tp = btp->tp;
-	return tracepoint_probe_register(tp, (void *)btp->bpf_func, prog);
+	tracepoint_probe_register(tp, (void *)btp->bpf_func, prog);  
+  ==> tracepoint_probe_register_prio  ==> tracepoint_add_func ==>
 }
 
 
@@ -498,6 +499,29 @@ __kprobe_trace_func {
 kprobe_event_define_fields {
 
 }
+```
+* tracepoint-defs.h
+```
+struct tracepoint_func {
+	void *func;
+	void *data;
+	int prio;
+};
+
+struct tracepoint {
+	const char *name;		/* Tracepoint name */
+	struct static_key key;
+	int (*regfunc)(void);
+	void (*unregfunc)(void);
+	struct tracepoint_func __rcu *funcs;
+};
+
+struct bpf_raw_event_map {
+	struct tracepoint	*tp;
+	void			*bpf_func;
+	u32			num_args;
+	u32			writable_size;
+} __aligned(32);
 ```
 
 * kernel/events/core

@@ -172,3 +172,7 @@ while ((_prog = READ_ONCE(_item->prog))) {		\
  (*(prog)->bpf_func)(ctx, (prog)->insnsi);	\
 	})
 ```
+
+```
+__bpf_trace_run  ==>  BPF_PROG_RUN  ==>  (*(prog)->bpf_func)(ctx, (prog)->insnsi);
+```
