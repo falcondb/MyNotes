@@ -1,5 +1,5 @@
 ## Origin
-[From Linux-Blog – Dr. Mönchmeyer's Post](https://linux-blog.anracom.com/2017/11/28/fun-with-veth-devices-linux-bridges-and-vlans-in-unnamed-linux-network-namespaces-vi/)
+[Fun with veth-devices, Linux bridges and VLANs in unnamed Linux network namespaces – VI](https://linux-blog.anracom.com/2017/11/28/fun-with-veth-devices-linux-bridges-and-vlans-in-unnamed-linux-network-namespaces-vi/)
 
 ## Preparation
 * Make sure 802.1q module is loaded
