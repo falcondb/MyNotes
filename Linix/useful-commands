@@ -16,7 +16,7 @@ zic					timezone compiler, generate timezone file
 xtrace				trace communication between X11 client and server
 peekfd				fd used by a process
 pstree				process tree relationship, install psmisc
-fuser				processes of using a file, install psmisc 
+fuser				processes of using a file, install psmisc
 killall				kill all processes runing with the executable file
 prtstat     print statistics of a process
 addr2line			VM address to symbol names
@@ -25,11 +25,15 @@ traceroute			Traces the route your packets
 dnsdomainname		Show DNS names in bind-utils
 free				Reports the amount of free and used physical memory
 pgrep, pidof pkill, pmap
-pwxd				Reports the current working directory of a process
+pwd				Reports the current working directory of a process
 slabtop				Displays detailed kernel slab cache information in real time
 sysctl				Modifies kernel parameters at run time
 vmstat				Reports virtual memory statistics, giving information about processes
 mpstat        install sysstat
+iostat
+pidstat
+dstat         versatile tool for generating system resource statistics
+sar sadc sa1 sa2
 w who users id			Shows which users are currently logged on, where, and since when
 last          login history for a specific username
 base32, base64
@@ -104,6 +108,10 @@ rpcinfo     makes an RPC call to an RPC server and reports what it finds
 journalctl  query the contents of the systemd
 
 tree
+
+dd          convert and copy files
+objdump     display information from object files
+readelf     ELF file reader
 
 systemd-cgls
 systemd-cgtop
