@@ -33,7 +33,7 @@ worth of reading it more, a very deep discussion
 
 >The memory cgroup subsystem allocates three res_counters, one for user-process memory usage, one for the sum of memory and swap usage, and one for usage of memory by the kernel on behalf of the process. Together with the one res_counter allocated by hugetlbe.
 
->When one of the various memory resources is requested by a process, the res_counter code will walk up the parent pointers, checking if limits are reached and updating the usage at each ancestor. 
+>When one of the various memory resources is requested by a process, the res_counter code will walk up the parent pointers, checking if limits are reached and updating the usage at each ancestor.
 
 >The memory controller will request that a full 32 be approved by the res_counter
 
@@ -125,13 +125,13 @@ mount -t cgroup2 none $MOUNT_POINT  #Mount Cgroup V2
 >A cgroup root object is created, with three cgroup core interface files beneath it:
 >>cgroup.controllers
 
->>cgroup.procs (put PIDs in); 
+>>cgroup.procs (put PIDs in);
 
 >>cgroup.subtree_control
 ```
 echo "+memory" > /sys/fs/cgroup2/cgroup.subtree_control
 echo "-memory" > /sys/fs/cgroup2/cgroup.subtree_control
-``` 
+```
 
 >>cgroup.events: reflects the number of processes attached to the subgroup: 0 when there are no processes attached to that subgroup or its descendants; 1 when there are one or more processes attached
 
@@ -142,7 +142,15 @@ echo "-memory" > /sys/fs/cgroup2/cgroup.subtree_control
 >In cgroups v1, a process can belong to many subgroups, if those subgroups are in different hierarchies with different controllers attached. But, because belonging to more than one subgroup made it difficult to disambiguate subgroup membership, in cgroups v2, a process can belong only to a single subgroup.
 
 ***
-[ejun Heo on cgroups and cgroups v2](https://www.youtube.com/watch?v=PzpG40WiEfM)
+[Tejun Heo on cgroups and cgroups v2](https://www.youtube.com/watch?v=PzpG40WiEfM)
+
+[Thread-level management in control groups](https://lwn.net/Articles/656115/) [The evolution of control groups](https://lwn.net/Articles/571977/)
+>A few users of thread-level cgroup control surfaced in the ensuing discussion; the most vocal of them was Paul Turner of Google, who asserted that this ability is an important part of how systems are managed there. One use case mentioned was the division of a job into work and support threads. The threads doing the "real work" should get the bulk of the available CPU time, but an application will typically want to guarantee a minimum of time to the support threads as well. Putting the two types of threads into different control groups allows this policy to be implemented in a fairly straightforward way.
+
+>The issue, they said, is fundamental to the design of the subsystem, and it is not reasonable to expect that a solu
+
+>Of all the controllers only the CPU controller has any business working with individual threads. ... Linus wondered if it was really true that only the CPU controller needs to look at individual threads; some server users, he said have wanted per-thread control for other resources as well.
+
 
 [Fixing control groups](https://lwn.net/Articles/484251/)
 
