@@ -134,3 +134,4 @@ memhog
 memusage    profile memory usage of a program
 
 dmidecode   DMI table decoder
+upgrade Centos kernel   yum --enablerepo=elrepo-kernel install kernel-ml${KERNEL_VERSION} kernel-ml-devel${KERNEL_VERSION} kernel-ml-tools${KERNEL_VERSION} kernel-ml-tools-libs${KERNEL_VERSION} -y   ; update GRUB_DEFAULT=0 in /etc/default/grub; reboot
