@@ -1,6 +1,6 @@
 # events, trace, BPF & Perf #
 [Ftrace, perf, and the tracing ABI](https://lwn.net/Articles/442113/)
-
+[Notes from the LPC tracing microconference](https://lwn.net/Articles/734453/)
 
 ## Tracer ##
 
@@ -55,4 +55,3 @@ A description of JIT for eBPF, code maybe more understandable, in the arch/
 
 ## Perf ##
 [Raw events and the perf ABI](https://lwn.net/Articles/441209/)
-
