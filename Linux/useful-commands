@@ -68,6 +68,7 @@ nstat netstat ss 	Shows network statistics
 tc
 ip
 brctl       ethernet bridge administration, install package bridge-utils
+tcpreplay   Replay network traffic stored in pcap files
 klogd syslogd
 init halt
 killall			send signal to processes other than the current session

@@ -45,6 +45,41 @@ I haven't read it through, seems to me a lot of details. Will revisit it when mo
 
 [BPF: the universal in-kernel virtual machine](https://lwn.net/Articles/599755/)
 
+[Oracle posts about eBPF by Alan Maguire](https://blogs.oracle.com/linux/notes-on-bpf-1)
+1.
+2.
+3.
+4. Series 4
+```
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_NET_CLS_BPF=m
+CONFIG_NET_ACT_BPF=m
+CONFIG_BPF_JIT=y
+CONFIG_HAVE_BPF_JIT=y
+CONFIG_BPF_EVENTS=y
+
+clang >= version 3.4.0
+llvm >= version 3.7.1
+```
+There is a make file example in the post
+5.  JIT compilation can be enabled via
+```
+sysctl net/core/bpf_jit_enable=1
+```
+Dump the BPF code
+```
+# Ensure the original program was compiled with -g to get source annotations
+llvm-objdump -S -no-show-raw-insn program.o
+```
+Investigating errors from the BPF verifier by reading bpf/verifier.c!!!
+
+6. An code example of extending /shrining the header in package.
+
+[BPF instruction set](https://www.kernel.org/doc/Documentation/networking/filter.txt)
+
+
+[Oracle BPF sampel code](https://github.com/oracle/linux-blog-sample-code/tree/bpf-test)
 
 [A JIT for packet filters](https://lwn.net/Articles/437981/)
 
