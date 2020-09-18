@@ -11,12 +11,16 @@ pldd				display dynamic shared objects linked into a process
 sotruss				trace shared library procedure calls
 strace        trace system calls and signals
 ltrace        A library call tracer
+ftrace              Linux kernel trace tool.
+IOVisor             BPF monitor tools
+stap                systemtap script
+stapbpf             systemtap bpf runtime, package systemtap.
 sprof				read and display shared object profiling data, see example on man7.org
 zic					timezone compiler, generate timezone file
 xtrace				trace communication between X11 client and server
 peekfd				fd used by a process
 pstree				process tree relationship, install psmisc
-fuser				processes of using a file, install psmisc 
+fuser				processes of using a file, install psmisc
 killall				kill all processes runing with the executable file
 prtstat     print statistics of a process
 addr2line			VM address to symbol names
@@ -25,11 +29,15 @@ traceroute			Traces the route your packets
 dnsdomainname		Show DNS names in bind-utils
 free				Reports the amount of free and used physical memory
 pgrep, pidof pkill, pmap
-pwxd				Reports the current working directory of a process
+pwd				Reports the current working directory of a process
 slabtop				Displays detailed kernel slab cache information in real time
 sysctl				Modifies kernel parameters at run time
 vmstat				Reports virtual memory statistics, giving information about processes
 mpstat        install sysstat
+iostat
+pidstat
+dstat         versatile tool for generating system resource statistics
+sar sadc sa1 sa2
 w who users id			Shows which users are currently logged on, where, and since when
 last          login history for a specific username
 base32, base64
@@ -64,6 +72,7 @@ nstat netstat ss 	Shows network statistics
 tc
 ip
 brctl       ethernet bridge administration, install package bridge-utils
+tcpreplay   Replay network traffic stored in pcap files
 klogd syslogd
 init halt
 killall			send signal to processes other than the current session
@@ -89,12 +98,14 @@ modprobe			module configuration, adding, removing and etc
 bootparam			kernel command line parameters
 /proc/cmdline
 tunctl        create and manage persistent TUN/TAP interfaces
-nc
+nc/netcat
+socat       Multipurpose relay (SOcket CAT)
 tcpdump/traceroute
 route
 arping     route cache
 dig        route cache, in pakage bind-utils
 ip neighbor show route cache
+tc
 mii-tool   view, manipulate media-independent interface status
 ebtables   Ethernet bridge frame table administration
 iptables
@@ -104,6 +115,11 @@ rpcinfo     makes an RPC call to an RPC server and reports what it finds
 journalctl  query the contents of the systemd
 
 tree
+
+dd          convert and copy files
+objdump     display information from object files
+readelf     ELF file reader
+pahole      Shows and manipulates data structure layout, package dwarves
 
 systemd-cgls
 systemd-cgtop
@@ -126,3 +142,4 @@ memhog
 memusage    profile memory usage of a program
 
 dmidecode   DMI table decoder
+upgrade Centos kernel   yum --enablerepo=elrepo-kernel install kernel-ml${KERNEL_VERSION} kernel-ml-devel${KERNEL_VERSION} kernel-ml-tools${KERNEL_VERSION} kernel-ml-tools-libs${KERNEL_VERSION} -y   ; update GRUB_DEFAULT=0 in /etc/default/grub; reboot
