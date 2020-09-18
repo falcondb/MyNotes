@@ -11,6 +11,10 @@ pldd				display dynamic shared objects linked into a process
 sotruss				trace shared library procedure calls
 strace        trace system calls and signals
 ltrace        A library call tracer
+ftrace              Linux kernel trace tool.
+IOVisor             BPF monitor tools
+stap                systemtap script
+stapbpf             systemtap bpf runtime, package systemtap.
 sprof				read and display shared object profiling data, see example on man7.org
 zic					timezone compiler, generate timezone file
 xtrace				trace communication between X11 client and server
@@ -94,12 +98,14 @@ modprobe			module configuration, adding, removing and etc
 bootparam			kernel command line parameters
 /proc/cmdline
 tunctl        create and manage persistent TUN/TAP interfaces
-nc
+nc/netcat
+socat       Multipurpose relay (SOcket CAT)
 tcpdump/traceroute
 route
 arping     route cache
 dig        route cache, in pakage bind-utils
 ip neighbor show route cache
+tc
 mii-tool   view, manipulate media-independent interface status
 ebtables   Ethernet bridge frame table administration
 iptables
@@ -113,6 +119,7 @@ tree
 dd          convert and copy files
 objdump     display information from object files
 readelf     ELF file reader
+pahole      Shows and manipulates data structure layout, package dwarves
 
 systemd-cgls
 systemd-cgtop
