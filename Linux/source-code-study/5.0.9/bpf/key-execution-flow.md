@@ -8,8 +8,16 @@
 ### BPF Syscalls in kernel/bpf/syscall.c ###
 
 * SYSCALL
+  * syscalls for Map operations (create, delete, query, etc.)
+  * BPF object operations
+  * program operations (load, attach, detach, etc.)
+  * fd operations
+  * raw tracepoint
+  * BTF operations.
+
 ```
 // SYSCALL_DEFINEx in include/linux/syscalls.h
+// kernel/bpf/syscall.c
 SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size) {
   copy_from_user()
   security_bpf() \\ TODO: trace down the code
@@ -175,4 +183,9 @@ while ((_prog = READ_ONCE(_item->prog))) {		\
 
 ```
 __bpf_trace_run  ==>  BPF_PROG_RUN  ==>  (*(prog)->bpf_func)(ctx, (prog)->insnsi);
+```
+
+* perf_event_bpf_event
+```
+
 ```

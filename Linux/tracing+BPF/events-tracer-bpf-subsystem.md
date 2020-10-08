@@ -38,6 +38,7 @@ READ this post, if really want to hack BPF!!!
 It explain how BPF link to events and tracefs, and the argument format of BPF call!
 [tplist](https://github.com/iovisor/bcc/blob/master/tools/tplist.py), a tool of converting tracepoint format to C struct
 
+[BPF Portability and CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)
 
 [Linux Socket Filtering aka Berkeley Packet Filter](https://www.kernel.org/doc/Documentation/networking/filter.txt)
 
