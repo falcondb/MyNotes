@@ -84,3 +84,7 @@ HC' = ~(C + (-m) + m')
 
 if the one's complement sum overflows, add 1 back
 ```
+
+
+## LWN posts
+[Van Jacobson's network channels](https://lwn.net/Articles/169961/) & [slides](http://www.lemis.com/grog/Documentation/vj/lca06vj.pdf)

@@ -4,20 +4,13 @@ getent				get entries from Name Service Switch
 iconv				convert encoding of given files from one encoding to another, ISO88592, UTF8, ASCII, etc.
 ldconfig			configure dynamic linker run-time bindings, /etc/ld.so.conf
 ldd					print shared object dependencies
-ldconfig    configure dynamic linker run-time bindings
-ldconfig    configure dynamic linker run-time bindings
-ldconfig    configure dynamic linker run-time bindings
-ldconfig    configure dynamic linker run-time bindings
 locale				description of multilanguage support
 makedb				create a simple database
 mtrace				malloc tracing of a process
 pldd				display dynamic shared objects linked into a process
-ftrace              Linux kernel trace tool.
+sotruss				trace shared library procedure calls
+strace        trace system calls and signals
 ltrace        A library call tracer
-ftrace              Linux kernel trace tool.
-IOVisor             BPF monitor tools
-stap                systemtap script
-stapbpf             systemtap bpf runtime, package systemtap.
 sprof				read and display shared object profiling data, see example on man7.org
 zic					timezone compiler, generate timezone file
 xtrace				trace communication between X11 client and server
@@ -70,66 +63,46 @@ yes 				Repeatedly outputs “y” or a given string until killed
 comp 				byte comparison between two files
 diff sdiff			comparison between two files
 rtstat lnstat ctstat	unified linux network statistics /proc/net/stat
-sfdisk      partition table manipulator for Linux
-partprobe   inform the OS of partition table changes
-resize2fs   ext2/ext3/ext4 file system resizer
 rtacct				Displays the contents of /proc/net/rt_acct
 nstat netstat ss 	Shows network statistics
 tc
 ip
 brctl       ethernet bridge administration, install package bridge-utils
-sfdisk      partition table manipulator for Linux
-partprobe   inform the OS of partition table changes
-resize2fs   ext2/ext3/ext4 file system resizer
 tcpreplay   Replay network traffic stored in pcap files
 klogd syslogd
 init halt
 killall			send signal to processes other than the current session
 telinit runlevel
-sfdisk      partition table manipulator for Linux
-partprobe   inform the OS of partition table changes
-resize2fs   ext2/ext3/ext4 file system resizer
 dmesg				Dumps the kernel boot messages
 column				table display
 colrm       remove columns from a file
 cal 				calendar
 fdisk cfdisk
-sfdisk      partition table manipulator for Linux
-tc
-partprobe   inform the OS of partition table changes
-resize2fs   ext2/ext3/ext4 file system resizer
 chrt				Manipulates real-time attributes of a process
 ipcmk ipcrm ipcs	IPC ops
 logger				Enters the given message into the system log
 lsblk lscpu lsipc lslocks lslogins lsof
 mesg 				Controls whether other users can send messages to the current user's terminal, mesg yes/no
 mkfs				Builds a file system on a device
-tc
 prlimit				Get and set a process' resource limits
 uuidgen
 udevadm				udev admin tool. udevd process.
-pahole      Shows and manipulates data structure layout, package dwarves
 nscd				name service cache daemon
 rename
 basename, dirname
 modprobe			module configuration, adding, removing and etc
 bootparam			kernel command line parameters
-tc
 /proc/cmdline
 tunctl        create and manage persistent TUN/TAP interfaces
-nc/netcat
-socat       Multipurpose relay (SOcket CAT)
-pahole      Shows and manipulates data structure layout, package dwarves
+nc
 tcpdump/traceroute
 route
 arping     route cache
 dig        route cache, in pakage bind-utils
 ip neighbor show route cache
-tc
 mii-tool   view, manipulate media-independent interface status
 ebtables   Ethernet bridge frame table administration
 iptables
-pahole      Shows and manipulates data structure layout, package dwarves
 ip6tables
 nmap        Network exploration tool and security / port scanner
 rpcinfo     makes an RPC call to an RPC server and reports what it finds
@@ -140,7 +113,6 @@ tree
 dd          convert and copy files
 objdump     display information from object files
 readelf     ELF file reader
-pahole      Shows and manipulates data structure layout, package dwarves
 
 systemd-cgls
 systemd-cgtop
