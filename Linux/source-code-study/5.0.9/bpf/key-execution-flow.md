@@ -185,7 +185,13 @@ while ((_prog = READ_ONCE(_item->prog))) {		\
 __bpf_trace_run  ==>  BPF_PROG_RUN  ==>  (*(prog)->bpf_func)(ctx, (prog)->insnsi);
 ```
 
-* perf_event_bpf_event
+* perf_event_bpf_event in kernel/events/core.c
 ```
+perf_event_bpf_event()
+  PERF_BPF_EVENT_PROG_LOAD || PERF_BPF_EVENT_PROG_UNLOAD ==>
+      perf_event_bpf_emit_ksymbols ==>
+        perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_BPF, ...)
 
+
+  perf_iterate_sb  
 ```

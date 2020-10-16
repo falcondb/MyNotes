@@ -1,24 +1,33 @@
-# Key data structures and function prototypes
+## Key namespace data structure
 
-### include/linux/skbuff.h ###
-* struct sk_buff {}
-
-### net/netfilter/nf_tables_core.h/c ###
-* nf table operations
-
-### net/core/dev.c ###
-* network device operations
-
-### include/linux/skmsg.h
-* sk_psock_progs
+#### ns_common
 ```
-struct sk_psock_progs {
-	struct bpf_prog			*msg_parser;
-	struct bpf_prog			*skb_parser;
-	struct bpf_prog			*skb_verdict;
+struct ns_common {
+	atomic_long_t stashed;
+	const struct proc_ns_operations *ops;
+	unsigned int inum;
 };
+
+
 ```
 
+#### linux/proc_ns.h
+```
+struct proc_ns_operations {
+	const char *name;
+	const char *real_ns_name;
+	int type;
+	struct ns_common *(*get)(struct task_struct *task);
+	void (*put)(struct ns_common *ns);
+	int (*install)(struct nsproxy *nsproxy, struct ns_common *ns);
+	struct user_namespace *(*owner)(struct ns_common *ns);
+	struct ns_common *(*get_parent)(struct ns_common *ns);
+} __randomize_layout;
+
+```
+
+
+#### net namespace
 #### net/net_namespace.h
 ```
 struct net {
@@ -41,7 +50,6 @@ struct net {
 	struct idr		netns_ids;
 
 	struct ns_common	ns;
-
 
 	struct list_head 	dev_base_head;
 	struct proc_dir_entry 	*proc_net;
@@ -78,16 +86,4 @@ struct net {
 	struct netns_xdp	xdp;
 	...
 } __randomize_layout;
-
-
-struct pernet_operations {
-	struct list_head list;
-	int (*init)(struct net *net);
-	void (*pre_exit)(struct net *net);
-	void (*exit)(struct net *net);
-	void (*exit_batch)(struct list_head *net_exit_list);
-	unsigned int *id;
-	size_t size;
-};
-
 ```

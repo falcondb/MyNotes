@@ -12,6 +12,34 @@
 
 >>generic XDP, where the XDP hooks are called from within the networking stack after the sk_buff has been allocated. Generic XDP allows us to use the benefits of XDP - though at a slightly higer performance cost - without underlying driver support. In this case bpf_prog_run_xdp is called as via netdev's netif_receive_generic_xdp function; i.e. after the skb has been allocated and set up. To ensure that XDP processing works, the skb has to be linearized (made contiguous rather than chunked in data fragments) - again this can cost performance.
 
+### AF_XDP
+>An AF_XDP socket (XSK) is created with the normal socket() syscall. Associated with each XSK are two rings: the RX ring and the TX ring.
+
+>These rings are registered and sized with the setsockopts XDP_RX_RING and XDP_TX_RING.
+
+>An RX or TX descriptor ring points to a data buffer in a memory area called a UMEM.
+
+>The UMEM consists of a number of equally sized chunks.
+
+>This memory area is then registered with the kernel using the new setsockopt XDP_UMEM_REG
+
+>The UMEM also has two rings:
+
+* The fill ring is used by the application to send down addr for the kernel to fill in with RX packet data
+* The completion ring contains frame addr that the kernel has transmitted completely and can now be used again by user space
+
+>The socket is then finally bound with a bind() call to a device and a specific queue id on that device
+
+>The UMEM can be shared between processes. simply skips the registration of the UMEM and its corresponding two rings, sets the XDP_SHARED_UMEM flag in the bind call
+
+>BPF_MAP_TYPE_XSKMAP. User-space application can place an XSK at an arbitrary place in this map. The XDP program can then redirect a packet to a specific index in this map.
+
+>AF_XDP can operate in two different modes: XDP_SKB and XDP_DRV.
+  * XDP_SKB mode is employed that uses SKBs together with the generic XDP support and copies out the data to user space.
+  * the driver has support for XDP, it will be used by the AF_XDP code to provide better performance
+
+_See my "source code study" notes about key data structures for XDP socket_
+
 ## Traffic control
 [Traffic Control HOWTO](https://tldp.org/HOWTO/Traffic-Control-HOWTO/overview.html)
 

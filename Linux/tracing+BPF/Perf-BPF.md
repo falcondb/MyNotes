@@ -175,8 +175,10 @@ struct perf_event_attr attr = {
         * for PERF_SAMPLE_PHYS_ADDR, perf_virt_to_phys : virt_to_phys for kernel address, __get_user_pages_fast and page_to_phys for user address
         * for others, calculate the size for the `struct perf_event_header`
       * output_begin
+        * __perf_output_begin in kernel/evetns/ring_buffer.c, handles the ring buffer, sample loss.
       * perf_output_sample
-
+        * perf_output_put ==> perf_output_copy ==> output_copy different types of data
         * PERF_SAMPLE_RAW, perf_output_put
         * perf_output_put with data in `struct perf_sample_data`
       * perf_output_end
+        * handle the head with memory sync ops

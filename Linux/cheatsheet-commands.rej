@@ -1,6 +1,0 @@
-***************
-*** 97
-- nc
---- 114,115 -----
-+ nc/netcat
-+ socat       Multipurpose relay (SOcket CAT)
