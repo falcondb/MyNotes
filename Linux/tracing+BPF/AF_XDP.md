@@ -1,7 +1,13 @@
 ## AF_XDP
+<<<<<<< HEAD
 ### In userland
 #### AF_XDP or XDP socket key data structures
 
+=======
+
+#### AF_XDP or XDP socket key data structures
+In userland:
+>>>>>>> b9ba28c2b56380ac2a2d03f4bd2a79e3ac2b4151
 ```
 # tools/lib/bpf/xsk.c
 
@@ -93,7 +99,7 @@ struct sockaddr_xdp {
 ```
 
 #### AF_XDP or XDP socket key execution flow
-
+In userland
 ```
 xsk_umem__create ==>
   umem->fd = socket(AF_XDP, SOCK_RAW, 0);
