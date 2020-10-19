@@ -1,5 +1,6 @@
 * perf_event.h
 ```
+struct perf_event {
 #ifdef CONFIG_PERF_EVENTS
 	/*
 	 * entry onto perf_event_context::event_list;

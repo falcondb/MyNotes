@@ -72,6 +72,70 @@ struct bpf_prog {
 * struct bpf_prog_array
 * #define __BPF_PROG_RUN_ARRAY
 
+### linux/bpf.h
+```
+struct bpf_map {
+  const struct bpf_map_ops *ops ____cacheline_aligned;
+  struct bpf_map *inner_map_meta;
+  enum bpf_map_type map_type;
+  u32 key_size;
+  u32 value_size;
+  u32 max_entries;
+  u32 map_flags;
+  int spin_lock_off; /* >=0 valid offset, <0 error */
+  u32 id;
+  int numa_node;
+  u32 btf_key_type_id, btf_value_type_id;
+  struct btf *btf;
+  struct bpf_map_memory memory;
+  char name[BPF_OBJ_NAME_LEN];
+  bool unpriv_array;
+  bool frozen; /* write-once; write-protected by freeze_mutex */
+  /* 22 bytes hole */
+  atomic64_t refcnt ____cacheline_aligned;
+  atomic64_t usercnt;
+  struct work_struct work;
+  struct mutex freeze_mutex;
+  u64 writecnt; /* writable mmap cnt; protected by freeze_mutex */
+};
+
+struct bpf_map_ops {
+	/* funcs callable from userspace (via syscall) */
+	int (*map_alloc_check)(union bpf_attr *attr);
+	struct bpf_map *(*map_alloc)(union bpf_attr *attr);
+	void (*map_release)(struct bpf_map *map, struct file *map_file);
+	void (*map_free)(struct bpf_map *map);
+	int (*map_get_next_key)(struct bpf_map *map, void *key, void *next_key);
+	void (*map_release_uref)(struct bpf_map *map);
+	void *(*map_lookup_elem_sys_only)(struct bpf_map *map, void *key);
+
+  /* funcs callable from userspace and from eBPF programs */
+	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
+	int (*map_update_elem)(struct bpf_map *map, void *key, void *value, u64 flags);
+	int (*map_delete_elem)(struct bpf_map *map, void *key);
+	int (*map_push_elem)(struct bpf_map *map, void *value, u64 flags);
+	int (*map_pop_elem)(struct bpf_map *map, void *value);
+	int (*map_peek_elem)(struct bpf_map *map, void *value);
+
+	/* funcs called by prog_array and perf_event_array map */
+	void *(*map_fd_get_ptr)(struct bpf_map *map, struct file *map_file, int fd);
+	void (*map_fd_put_ptr)(void *ptr);
+	u32 (*map_gen_lookup)(struct bpf_map *map, struct bpf_insn *insn_buf);
+	u32 (*map_fd_sys_lookup_elem)(void *ptr);
+	void (*map_seq_show_elem)(struct bpf_map *map, void *key, struct seq_file *m);
+	int (*map_check_btf)(...);
+
+	/* Prog poke tracking helpers. */
+	int (*map_poke_track)(struct bpf_map *map, struct bpf_prog_aux *aux);
+	void (*map_poke_untrack)(struct bpf_map *map, struct bpf_prog_aux *aux);
+	void (*map_poke_run)(...);
+
+	/* Direct value access helpers. */
+	int (*map_direct_value_addr)(...);
+	int (*map_direct_value_meta)(...);
+	int (*map_mmap)(...);
+};
+```
 
 ### /include/uapi/linux/bpf.h ###
 * BPF Register numbers

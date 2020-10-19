@@ -143,6 +143,31 @@ struct address_space {
 } __attribute__((aligned(sizeof(long)))) __randomize_layout;
 
 
+
+struct address_space_operations {
+	int (*writepage)(struct page *page, struct writeback_control *wbc);
+	int (*readpage)(struct file *, struct page *);
+
+	/* Write back some dirty pages from this mapping. */
+	int (*writepages)(struct address_space *, struct writeback_control *);
+
+	/* Set a page dirty.  Return true if this dirtied it */
+	int (*set_page_dirty)(struct page *page);
+
+ 	// Reads in the requested pages. Unlike ->readpage(), this is PURELY used for read-ahead!.
+	int (*readpages)();
+	int (*write_begin)();
+	int (*write_end)();
+
+	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
+	int (*releasepage) (struct page *, gfp_t);
+	void (*freepage)(struct page *);
+	ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
+	/* swapfile support */
+};
+
+
+
 struct block_device {
 	dev_t			bd_dev;  /* not a kdev_t - it's a search key */
 	int			bd_openers;

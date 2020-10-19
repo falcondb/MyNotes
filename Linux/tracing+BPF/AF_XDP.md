@@ -1,13 +1,7 @@
 ## AF_XDP
-<<<<<<< HEAD
 ### In userland
 #### AF_XDP or XDP socket key data structures
 
-=======
-
-#### AF_XDP or XDP socket key data structures
-In userland:
->>>>>>> b9ba28c2b56380ac2a2d03f4bd2a79e3ac2b4151
 ```
 # tools/lib/bpf/xsk.c
 
@@ -66,6 +60,7 @@ struct xsk_socket_config {
 };
 
 # uapi/linux/if_xdp.h
+# for the registration parameters
 struct xdp_umem_reg {
 	__u64 addr; /* Start of packet data area */
 	__u64 len; /* Length of packet data area */
@@ -206,16 +201,103 @@ static struct pernet_operations xsk_net_ops = {
 };
 
 ```
+
+```
+# xdp/xdp_sock.h
+
+struct xdp_sock {
+	struct sock sk;
+	struct xsk_queue *rx;
+	struct net_device *dev;
+	struct xdp_umem *umem;
+	struct list_head flush_node;
+	u16 queue_id;
+	bool zc;
+	enum { XSK_READY = 0, XSK_BOUND, XSK_UNBOUND,} state;
+	struct mutex mutex;
+	struct xsk_queue *tx;
+	struct list_head list;
+	spinlock_t tx_completion_lock;
+	spinlock_t rx_lock;
+	u64 rx_dropped;
+	struct list_head map_list;
+	spinlock_t map_list_lock;
+};
+
+struct xdp_umem {
+	struct xsk_queue *fq;
+	struct xsk_queue *cq;
+	struct xdp_umem_page *pages;
+	u64 chunk_mask;
+	u64 size;
+	u32 headroom;
+	u32 chunk_size_nohr;
+	struct user_struct *user;
+	unsigned long address;
+	refcount_t users;
+	struct work_struct work;
+	struct page **pgs;
+	u32 npgs;
+	u16 queue_id;
+	u8 need_wakeup;
+	u8 flags;
+	int id;
+	struct net_device *dev;
+	struct xdp_umem_fq_reuse *fq_reuse;
+	bool zc;
+	spinlock_t xsk_list_lock;
+	struct list_head xsk_list;
+};
+
+struct xsk_queue {
+	u64 chunk_mask;
+	u64 size;
+	u32 ring_mask;
+	u32 nentries;
+	u32 prod_head;
+	u32 prod_tail;
+	u32 cons_head;
+	u32 cons_tail;
+	struct xdp_ring *ring;
+	u64 invalid_descs;
+};
+
+struct xdp_ring {
+	u32 producer;
+	u32 consumer;
+	u32 flags;
+};
+
+struct xsk_map {
+	struct bpf_map map;
+	struct list_head __percpu *flush_list;
+	spinlock_t lock; /* Synchronize map updates */
+	struct xdp_sock *xsk_map[];
+};
+
+struct xsk_map_node {
+	struct list_head node;
+	struct xsk_map *map;
+	struct xdp_sock **map_entry;
+};
+
+struct xdp_umem_page {
+	void *addr;
+	dma_addr_t dma;
+};
+
+```
+
 #### AF_XDP or XDP socket key execution flow
 
 ```
-fs_initcall(xsk_init) == asm(".section	\"" #__sec ".init\", ...) or call the fn for module
-xsk_init
-
+fs_initcall(xsk_init) == asm(".section	\"" #__sec ".init\", ...)
 ```
 
 
 ```
+xsk_family_ops = { .create = xsk_create };
+
 xsk_create
   sk_alloc for struct net
   sock->ops = &xsk_proto_ops
@@ -252,6 +334,50 @@ __init xsk_init
     list_for_each_entrynetVAR, &net_namespace_list, list)
       call_netdevice_register_net_notifiers(nb, net)
 
+
 xsk_setsockopt
-  ?????
+  case XDP_RX_RING:
+  case XDP_TX_RING:
+    mutex_lock(&xs->mutex);
+    xsk_init_queue(entries, xs->tx/rx, false);
+      xskq_create
+        kzalloc(struct xsk_queue q) // slab and zero
+        q->ring = __get_free_pages(GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN |
+		    __GFP_COMP  | __GFP_NORETRY, get_order(size));
+    mutex_unlock(&xs->mutex);
+  case XDP_UMEM_REG:
+    mutex_lock(&xs->mutex);
+    xdp_umem_create
+      ida_simple_get  // get an id from idr/xarray
+      xdp_umem_reg
+        xdp_umem_account_pages  // check the locked-maps of the user with rlimit MEMLOCK
+        xdp_umem_pin_pages
+          umem->pgs = kcalloc(umem->npgs, sizeof(*umem->pgs), GFP_KERNEL | __GFP_NOWARN); // struct page
+          down_read(&current->mm->mmap_sem);
+          get_user_pages(umem->address, ..., FOLL_WRITE | FOLL_LONGTERM,...) // pin_user_pages.rst.
+          up_read(&current->mm->mmap_sem)
+        umem->pages = kcalloc(umem->npgs, sizeof(*umem->pages), GFP_KERNEL); // struct xdp_umem_page
+        xdp_umem_map_pages
+    mutex_unlock(&xs->mutex);
+  case XDP_UMEM_FILL_RING:
+  case XDP_UMEM_COMPLETION_RING:  
+    xsk_init_queue(entries, &xs->umem->fq/cq, true);
+      xskq_create
+        ...
+
+
+xsk_mmap
+  offset = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
+  if (offset == XDP_PGOFF_RX_RING)
+    q = READ_ONCE(xs->rx);
+  else if (offset == XDP_PGOFF_TX_RING)
+    q = READ_ONCE(xs->tx);
+  else if offset == XDP_UMEM_PGOFF_FILL_RING
+    q = READ_ONCE(umem->fq);
+  else if (offset == XDP_UMEM_PGOFF_COMPLETION_RING)
+		q = READ_ONCE(umem->cq);
+
+  pfn = virt_to_phys(q->ring) >> PAGE_SHIFT
+  remap_pfn_range(vma, vma->vm_start, pfn, ...)
+		//remap kernel memory to userspace, see memory.md
 ```
