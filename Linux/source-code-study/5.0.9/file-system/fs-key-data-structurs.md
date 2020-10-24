@@ -255,3 +255,13 @@ struct dentry {
 } __randomize_layout;
 
 ```
+
+
+#### uapi/asm-generic/poll.h
+```
+struct pollfd {
+	int fd;
+	short events;
+	short revents;
+};
+```

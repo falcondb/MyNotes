@@ -83,6 +83,13 @@ struct xdp_ring_offset {
 	__u64 flags;
 };
 
+/* Rx/Tx descriptor */
+struct xdp_desc {
+	__u64 addr;
+	__u32 len;
+	__u32 options;
+};
+
 struct sockaddr_xdp {
 	__u16 sxdp_family;
 	__u16 sxdp_flags;
@@ -96,14 +103,16 @@ struct sockaddr_xdp {
 #### AF_XDP or XDP socket key execution flow
 In userland
 ```
-xsk_umem__create ==>
+// tools/lib/bpf/xsk.c
+xsk_umem__create (..., void *umem_area, ...) ==>
   umem->fd = socket(AF_XDP, SOCK_RAW, 0);
   xdp_umem_reg setup
   setsockopt(umem->fd, SOL_XDP, XDP_UMEM_REG, ...)
   setsockopt(umem->fd, SOL_XDP, XDP_UMEM_FILL_RING, ...)
   setsockopt(umem->fd, SOL_XDP, XDP_UMEM_COMPLETION_RING, ...)
 
-  xsk_get_mmap_offsets ==> getsockopt(fd, SOL_XDP, XDP_MMAP_OFFSETS, ...)
+	struct xdp_umem_reg mr->addr  = umem_area // pass the UMEM addr in userland to kernel
+  xsk_get_mmap_offsets ==> getsockopt(fd, SOL_XDP, XDP_MMAP_OFFSETS, mr)
 
   map = mmap(NULL, off.fr.desc + umem->config.fill_size * sizeof(__u64),
 		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, umem->fd, XDP_UMEM_PGOFF_FILL_RING);
@@ -121,9 +130,10 @@ xsk_umem__create ==>
 
 xsk_socket__create ==>
     struct xsk_socket setup
+		umem->refcount++ > 0 ? xsk->fd = socket(AF_XDP, SOCK_RAW, 0) : xsk->fd = umem->fd // umem != in use, xsk.fd = umem.fd
     setsockopt(xsk->fd, SOL_XDP, XDP_RX_RING, ...)
     setsockopt(xsk->fd, SOL_XDP, XDP_TX_RING, ...)
-    xsk_get_mmap_offsets();
+    xsk_get_mmap_offsets();  // the members' offset in ring struct
     rx_map = mmap(NULL, off.rx.desc + xsk->config.rx_size * sizeof(struct xdp_desc),
         PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, xsk->fd, XDP_PGOFF_RX_RING);
         rx->producer = rx_map + off.rx.producer;
@@ -378,6 +388,5 @@ xsk_mmap
 		q = READ_ONCE(umem->cq);
 
   pfn = virt_to_phys(q->ring) >> PAGE_SHIFT
-  remap_pfn_range(vma, vma->vm_start, pfn, ...)
-		//remap kernel memory to userspace, see memory.md
+  remap_pfn_range(vma, vma->vm_start, pfn, ...) //remap kernel memory to userspace, see memory.md
 ```
