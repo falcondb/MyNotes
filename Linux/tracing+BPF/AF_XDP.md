@@ -134,9 +134,10 @@ xsk_socket__create ==>
     setsockopt(xsk->fd, SOL_XDP, XDP_RX_RING, ...)
     setsockopt(xsk->fd, SOL_XDP, XDP_TX_RING, ...)
     xsk_get_mmap_offsets();  // the members' offset in ring struct
-    rx_map = mmap(NULL, off.rx.desc + xsk->config.rx_size * sizeof(struct xdp_desc),
+
+		rx_map = mmap(NULL, off.rx.desc + xsk->config.rx_size * sizeof(struct xdp_desc),
         PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, xsk->fd, XDP_PGOFF_RX_RING);
-        rx->producer = rx_map + off.rx.producer;
+    rx->producer = rx_map + off.rx.producer;
 		rx->consumer = rx_map + off.rx.consumer;
 		rx->ring = rx_map + off.rx.desc;
 
