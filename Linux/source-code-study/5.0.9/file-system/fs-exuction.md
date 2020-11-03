@@ -2,8 +2,7 @@
 
 #### fs/file.c
 ```
-void __fd_install(struct files_struct *files, unsigned int fd,
-		struct file *file)
+void __fd_install(struct files_struct *files, unsigned int fd, struct file *file)
 {
 	rcu_read_lock_sched();
 	smp_rmb();
@@ -11,6 +10,9 @@ void __fd_install(struct files_struct *files, unsigned int fd,
 	rcu_assign_pointer(fdt->fd[fd], file);
 	rcu_read_unlock_sched();
 }
+
+__fdget ==>  __fget_light
+	current->files (struct files_struct) ->fdt (struct fdtable)[fd]
 ```
 
 #### fs/open.c

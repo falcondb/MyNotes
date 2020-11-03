@@ -104,3 +104,13 @@ get_user_pages
 #### mm/highmem.c
 
 #### kmap
+
+#### kmalloc_node
+
+```
+kmalloc_node
+  # CONFIG_SLOB
+  kmem_cache_alloc_node_trace
+
+
+```

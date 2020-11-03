@@ -15,20 +15,6 @@
   * raw tracepoint
   * BTF operations.
 
-```
-// SYSCALL_DEFINEx in include/linux/syscalls.h
-// kernel/bpf/syscall.c
-SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size) {
-  copy_from_user()
-  security_bpf() \\ TODO: trace down the code
-  switch (cmd) {
-    case BPF_MAP_CREATE:
-    err = map_create(&attr);
-    ...
-  }
-
-}
-```
 * bpf_prog_load
 ```
  bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
