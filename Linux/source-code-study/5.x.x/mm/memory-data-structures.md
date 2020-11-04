@@ -53,6 +53,9 @@ struct zone {
 } ____cacheline_internodealigned_in_smp;
 
 
+/*
+for buddy system
+*/
 struct free_area {
 	struct list_head	free_list[MIGRATE_TYPES];
 	unsigned long		nr_free;
@@ -100,5 +103,41 @@ struct per_cpu_pageset {
 struct per_cpu_pages {
 	int count, high, batch
 	struct list_head lists[MIGRATE_PCPTYPES];
+};
+```
+
+
+### Slab
+#### slab.h
+```
+struct kmem_cache {
+	unsigned int object_size;/* The original size of the object */
+	unsigned int size;	/* The aligned/padded/added on size  */
+	unsigned int align;	/* Alignment as calculated */
+	slab_flags_t flags;	/* Active flags on the slab */
+	unsigned int useroffset;/* Usercopy region offset */
+	unsigned int usersize;	/* Usercopy region size */
+	const char *name;	/* Slab name for sysfs */
+	int refcount;		/* Use counter */
+	void (*ctor)(void *);	/* Called on object slot creation */
+	struct list_head list;	/* List of all slab caches on the system */
+};
+```
+
+#### slab-def.h
+```
+struct kmem_cache {
+
+}
+```
+
+#### slab.c
+```
+struct array_cache {
+	unsigned int avail;
+	unsigned int limit;
+	unsigned int batchcount;
+	unsigned int touched;
+	void *entry[];
 };
 ```

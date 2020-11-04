@@ -80,7 +80,23 @@ multiple threads and call sites are free to pin the same struct pages
 
 The rest need further studies, I can't follow at this time.
 
+### High memory
+[Why highmem](https://linux-mm.org/HighMemory)
+> Coping with HighMemory
+>> Memory above the physical address of 896MB are temporarily mapped into kernel virtual memory whenever the kernel needs to access that memory.
+>> Data which the kernel frequently needs to access is allocated in the lower 896MB of memory (ZONE_NORMAL)
+>> Data which the kernel only needs to access occasionally, including page cache, process memory and page tables, are preferentially allocated from ZONE_HIGHMEM
+>> The system can have additional physical memory zones to deal with devices that can only perform DMA to a limited amount of physical memory, ZONE_DMA and ZONE_DMA32
+> Temporary mapping
+>> The temporary mapping of data from highmem into kernel virtual memory is done using the functions kmap(). Good SMP scalability can be obtained by using kmap_atomic(), which is lockless.
+
+
 ### MM on LWN
+[Virtual Memory I: the problem](https://lwn.net/Articles/75174/)
+> On 32-bit systems, memory is now divided into "high" and "low" memory. Low memory continues to be mapped directly into the kernel's address space, and is thus always reachable via a kernel-space pointer. High memory, instead, has no direct kernel mapping. When the kernel needs to work with a page in high memory, it must explicitly set up a special page table to map it into the kernel's address space first. This operation can be expensive, and there are limits on the number of high-memory pages which can be mapped at any particular time.
+
+>For the most part, the kernel's own data structures must live in low memory. Memory which is not permanently mapped cannot appear in linked lists (because its virtual address is transient and variable), and the performance costs of mapping and unmapping kernel memory are too high. High memory is useful for process pages and some kernel tasks (I/O buffers, for example), but the core of the kernel stays in low memory.
+
 [A deep dive into CMA](https://lwn.net/Articles/486301/)
 [An introduction to compound pages](https://lwn.net/Articles/619514/)
 >A compound page is simply a grouping of two or more physically contiguous pages into a unit that can, in many ways, be treated as a single, larger page. They are most commonly used to create huge pages, used within hugetlbfs or the transparent huge pages subsystem
