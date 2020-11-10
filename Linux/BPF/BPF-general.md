@@ -1,4 +1,6 @@
 ## BPF general
+[BCC to libbpf conversion guide](https://nakryiko.com/posts/bcc-to-libbpf-howto-guide/#setting-up-user-space-parts)
+>
 
 [BPF ring buffer at Andrii Nakryiko's Blog](https://nakryiko.com/posts/bpf-ringbuf/)
 Available from Linux version 5.8: BPF map --- BPF ring buffer
@@ -29,5 +31,5 @@ BPF_MAP_TYPE_RINGBUF
 MAP APIs
   * bpf_ringbuf_output() allows to copy data from one place to a ring buffer, similarly to bpf_perf_event_output()
   * bpf_ringbuf_reserve() ==> bpf_ringbuf_commit()/bpf_ringbuf_discard()
-  
+
 [Ring buffer selftet in kernel code](https://github.com/torvalds/linux/blob/master/tools/testing/selftests/bpf/progs/test_ringbuf_multi.c)
