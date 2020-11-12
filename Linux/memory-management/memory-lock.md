@@ -67,3 +67,16 @@ Only then is the cache line allowed to change state or be acquired by another pr
 > If an attempt to acquire the lock using CMPXCHG fails then we enter into a wait loop. A CMPXCHG requires the processor to acquire the cache line containing the lock for
 exclusive access. If the operation fails then it is likely that the other processor holding the lock will read or write to data in the cache line and thus exclusive access must be transferred back to the processor holding the lock leading to the cache line bouncing back and forth.
 > If the CMPXCHG would simply be retried on failure then there is a high likelihood that the cache line will continually bounce between the processor holding the lock and the processor trying to acquire the lock until the lock is acquired by another processor. In order to limit cache line bouncing, retries simply read the lock value and wait using regular load instruction while the contents of the lock value is not zero. If the contents are zero then another CMPXCHG is attempted to acquire the lock.
+
+### LWN
+[MCS locks and qspinlocks](https://lwn.net/Articles/590243/)
+```
+struct mcs_spinlock {
+  struct mcs_spinlock *next;
+  int locked; /* 1 if lock acquired */
+};
+```
+* When a CPU comes along with a desire to acquire this lock, it will provide an mcs_spinlock structure of its own. Using an unconditional atomic exchange operation, it stores the address of its own structure in the lock's next field and marks the lock as taken
+* When the second CPU does this atomic swap on the main lock, it too will get back the previous contents of the next field — the pointer to the first CPU's mcs_spinlock structure. The non-NULL value tells the second CPU that the lock is not available, while the specific pointer value says who is ahead in line for the lock. The second CPU will respond to this situation by storing a pointer to its mcs_spinlock structure in the next
+* Once this assignment is done, CPU 2 will spin on the locked value in its own mcs_spinlock structure rather than the value in the main lock.
+* When CPU 1 finally finishes with the lock, it will do a compare-and-swap operation on the main lock, trying to set the next pointer to NULL on the assumption that this pointer still points to its own structure. If that operation succeeds, the lock was never contended and the job is done. If some other CPU has changed that pointer as shown above, though, the compare-and-swap will fail. In that case, CPU 1 will not change the main lock at all; instead, it will change the locked value in CPU 2's structure and remove itself from the situation
