@@ -98,6 +98,12 @@ The rest need further studies, I can't follow at this time.
 >For the most part, the kernel's own data structures must live in low memory. Memory which is not permanently mapped cannot appear in linked lists (because its virtual address is transient and variable), and the performance costs of mapping and unmapping kernel memory are too high. High memory is useful for process pages and some kernel tasks (I/O buffers, for example), but the core of the kernel stays in low memory.
 
 [A deep dive into CMA](https://lwn.net/Articles/486301/)
+> The Contiguous Memory Allocator (or CMA) allows allocation of big, physically-contiguous memory blocks
+
+> CMA works by reserving memory early at boot time. This memory, called a CMA area or a CMA context, is later returned to the buddy allocator so that it can be used by regular applications.
+
+
+
 [An introduction to compound pages](https://lwn.net/Articles/619514/)
 >A compound page is simply a grouping of two or more physically contiguous pages into a unit that can, in many ways, be treated as a single, larger page. They are most commonly used to create huge pages, used within hugetlbfs or the transparent huge pages subsystem
 
@@ -106,3 +112,83 @@ The rest need further studies, I can't follow at this time.
 >The first (normal) page in a compound page is called the "head page"; it has the PG_head flag set. All other pages are "tail pages"; they are marked with PG_tail. all pages in a compound page have the PG_compound flag set, and the tail pages have PG_reclaim set as well.
 
 >By default, free_compound_page() is used; all it does is return the memory to the page allocator. The hugetlbfs subsystem, though, uses free_huge_page() to keep its accounting up to date.
+
+
+[Memory Management](https://www.kernel.org/doc/html/latest/admin-guide/mm/index.html)
+HugeTLB Pages
+> Users can use the huge page support in Linux kernel by either using the mmap system call or standard SYSV shared memory system calls
+
+> CONFIG_HUGETLBFS & CONFIG_HUGETLB_PAGE
+
+> applications are going to use only shmat/shmget system calls or mmap with MAP_HUGETLB
+
+> On a NUMA platform, the kernel will attempt to distribute the huge page pool over all the set of allowed nodes specified by the NUMA memory policy of the task that modifies nr_hugepages.
+
+```
+/proc/meminfo
+/proc/filesystems
+/proc/sys/vm/nr_hugepages
+/proc/sys/vm/
+/sys/devices/system/node/node*/meminfo
+/sys/kernel/mm/hugepages
+numactl
+```
+Using Huge Pages
+```
+mount -t hugetlbfs ...
+```
+[libhugetlbfs](https://github.com/libhugetlbfs/libhugetlbfs)
+
+
+> On a NUMA platform, the kernel will attempt to distribute the huge page pool over all the set of allowed nodes specified by the NUMA memory policy of the task that modifies nr_hugepages.
+
+
+Idle Page Tracking
+> CONFIG_IDLE_PAGE_TRACKING
+
+> Only accesses to user memory pages are tracked. These are pages mapped to a process address space, page cache and buffer pages, swap cache pages. For other page types (e.g. SLAB pages) an attempt to mark a page idle is silently ignored, and hence such pages are never reported idle.
+
+- Mark all the workload’s pages as idle by setting corresponding bits in /sys/kernel/mm/page_idle/bitmap. The pages can be found by reading /proc/pid/pagemap if the workload is represented by a process, or by filtering out alien pages using /proc/kpagecgroup in case the workload is placed in a memory cgroup.
+- Wait until the workload accesses its working set.
+- Read /sys/kernel/mm/page_idle/bitmap and count the number of bits set. If one wants to ignore certain types of pages, e.g. mlocked pages since they are not reclaimable, he or she can filter them out using /proc/kpageflags.
+
+```
+/sys/kernel/mm/page_idle
+/sys/kernel/mm/page_idle/bitmap
+```
+
+Kernel Samepage Merging
+> CONFIG_KSM
+
+>KSM was originally developed for use with KVM (where it was known as Kernel Shared Memory), to fit more virtual machines into physical memory, by sharing the data common between them. But it can be useful to any application which generates many instances of the same data.
+
+> The KSM daemon ksmd periodically scans those areas of user memory which have been registered with it, looking for pages of identical content which can be replaced by a single write-protected page
+
+> KSM only merges anonymous (private) pages, never pagecache (file) pages.
+
+```
+int madvise(void *addr, size_t length, int advice);  // give advice about use of memory
+ /sys/kernel/mm/ksm/
+```
+
+Memory Hotplug
+> Memory Hotplug allows users to increase/decrease the amount of memory. Generally, there are two purposes.
+
+No-MMU memory mapping support
+> The kernel has limited support for memory mapping under no-MMU conditions, such as are used in uClinux environments.
+
+* Many differences in the memory mapping behaviors with MMU and No-MMU, see the page for the details
+
+NUMA Memory Policy
+> “memory policy” determines from which node the kernel will allocate memory in a NUMA system
+
+
+```
+numactl --show
+/sys/devices/system/node/online
+/proc/$PID/task/$TASK/numa_maps
+
+```
+
+
+[Documentation for /proc/sys/vm/](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/vm.html)

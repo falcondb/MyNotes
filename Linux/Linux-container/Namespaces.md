@@ -74,9 +74,9 @@ When the ip tool creates a network namespace, it will create a bind mount for it
 
 [Linux Man IP netns](http://man7.org/linux/man-pages/man8/ip-netns.8.html) for more details
 
->New network namespaces will have a loopback device but no other network devices. Aside from the loopback device, each network device can only be present in a single network namespace. 
+>New network namespaces will have a loopback device but no other network devices. Aside from the loopback device, each network device can only be present in a single network namespace.
 
->Physical devices cannot be assigned to namespaces other than the root. 
+>Physical devices cannot be assigned to namespaces other than the root.
 
 >Virtual network devices can be created and assigned to a namespace.
 
@@ -97,7 +97,7 @@ ifconfig veth0 10.1.1.2/24 up
 
 >[Shared subtrees](https://lwn.net/Articles/159077/)
 >>Under the shared subtrees feature, each mount point is marked with a "propagation type", which determines whether mount points created and removed under this mount point are propagated to other mount points. There are four different propagation types:
->>>MS_SHARED: This mount point shares mount and unmount events with other mount points that are members of its "peer group" propagate to the peer group, so that the mount or unmount will also take place under each of the peer mount points. 
+>>>MS_SHARED: This mount point shares mount and unmount events with other mount points that are members of its "peer group" propagate to the peer group, so that the mount or unmount will also take place under each of the peer mount points.
 
 >>>MS_PRIVATE: This is the converse of a shared mount point. The mount point does not propagate events to any peers, and does not receive propagation events from any peers.
 
@@ -148,10 +148,8 @@ Fixed by 3.8.3 and 3.9, disallow the combination of CLONE_NEWUSER and CLONE_FS
 
 The execution diagram clearly explain the procedure of the privildge exploit.
 The key idea is:
-* In the new userspace with the clone fs, replace your program which grants you priviledge role with 
+* In the new userspace with the clone fs, replace your program which grants you priviledge role with
 a shared lib will be linked to a set-user-ID-root program.
 * Execute the set-user-ID-root program in the original namespace, and the hacked shared lib will be linked
-and executed with priviledge capability in the original namespace. 
+and executed with priviledge capability in the original namespace.
 The target program in the orignal namespace in turn gain the priviledge capablity.
-
-

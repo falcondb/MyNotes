@@ -157,3 +157,32 @@ echo "-memory" > /sys/fs/cgroup2/cgroup.subtree_control
 [A control group manager](https://lwn.net/Articles/618411/)
 
 [Resource Groups: Thread-level control with resource groups](https://lwn.net/Articles/679940/)
+
+[cpuset.rst](https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/cgroup-v1/cpusets.rst)
+READ it first every time working with cpuset!!!!
+> Cpusets provide a mechanism for assigning a set of CPUs and Memory Nodes to a set of tasks. In this document "Memory Node" refers to an on-line node that contains memory.
+
+> Requests by a task, using the sched_setaffinity(2) system call to include CPUs in its CPU affinity mask, and using the mbind(2) and set_mempolicy(2) system calls to include Memory Nodes in its memory policy, are both filtered through that task's cpuset, filtering out any CPUs or Memory Nodes not in that cpuset
+
+> The management of large computer systems, with many processors (CPUs), complex memory cache hierarchies and multiple Memory Nodes having non-uniform access times (NUMA) presents additional challenges for the efficient scheduling and memory placement of processes. But larger systems, which benefit more from careful processor and memory placement to reduce memory access times and contention, and which typically represent a larger investment for the customer, can benefit from explicitly placing jobs on properly sized subsets of the system.
+
+> You should mount the "cgroup" filesystem type in order to enable browsing and modifying the cpusets presently known to the kernel. No new system calls are added for cpusets - all support for querying and modifying cpusets is via this cpuset file system
+
+> If a cpuset is cpu or mem exclusive, no other cpuset, other than a direct ancestor or descendant, may share any of the same CPUs or Memory Nodes.
+
+> The memory_pressure of a cpuset provides a simple per-cpuset metric of the rate that the tasks in a cpuset are attempting to free up in use memory on the nodes of the cpuset to satisfy additional memory requests.
+
+> There are two boolean flag files per cpuset that control where the kernel allocates pages for the file system buffers and related in kernel data structures. They are called 'cpuset.memory_spread_page' and 'cpuset.memory_spread_slab'.
+> If the per-cpuset boolean flag file 'cpuset.memory_spread_page' is set, then the kernel will spread the file system buffers (page cache) evenly over all the nodes that the faulting task is allowed to use, instead of preferring to put those pages on the node where the task is running.
+> If the per-cpuset boolean flag file 'cpuset.memory_spread_slab' is set, then the kernel will spread some file system related slab caches, such as for inodes and dentries evenly over all the nodes that the faulting task is allowed to use, instead of preferring to put those pages on the node where the task is running.
+> Setting memory spreading causes allocations for the affected page or slab caches to ignore the task's NUMA mempolicy and be spread instead.
+
+
+> The algorithmic cost of load balancing and its impact on key shared kernel data structures such as the task list increases more than linearly with the number of CPUs being balanced. So the scheduler has support to partition the systems CPUs into a number of sched domains such that it only load balances within each sched domain
+
+> The algorithmic cost of load balancing and its impact on key shared kernel data structures such as the task list increases more than linearly with the number of CPUs being balanced. So the scheduler has support to partition the systems CPUs into a number of sched domains such that it only load balances within each sched domain
+> If a task is moved from one cpuset to another, then the kernel will adjust the task's memory placement, as above, the next time that the kernel attempts to allocate a page of memory for that task.
+
+> If a cpuset has its 'cpuset.cpus' modified, then each task in that cpuset will have its allowed CPU placement changed immediately. Similarly, if a task's pid is written to another cpuset's 'tasks' file, then its allowed CPU placement is changed immediately.
+
+> In summary, the memory placement of a task whose cpuset is changed is updated by the kernel, on the next allocation of a page for that task, and the processor placement is updated immediately.
