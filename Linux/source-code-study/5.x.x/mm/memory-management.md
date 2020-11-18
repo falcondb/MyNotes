@@ -51,19 +51,51 @@ __get_free_pages
 
 ```
 get_page_from_freelist
-  for zone in zonelist
-    rmqueue
-      if order == 0 for buddy
-        rmqueue_pcplist ==> __rmqueue_pcplist // per cpu list
-          take LRU page
-      if ALLOC_HARDER
-        __rmqueue_smallest  MIGRATE_HIGHATOMIC // from the lowest possible order
-          get_page_from_free_area // get from the freelist of the order in buddy
-          expand
-      __rmqueue
-        __rmqueue_smallest
+	for_next_zone_zonelist_nodemask
+			node_reclaim(zone->zone_pgdat, gfp_mask, order)
+			if (zone_watermark_ok()
+		    rmqueue
+          if order == 0
+            rmqueue_pcplist /* Lock and remove page from the per-cpu list */
+              local_irq_save
+              this_cpu_ptr(zone->pageset)->pcp
+              list = &pcp->lists[migratetype];
+              __rmqueue_pcplist(list)
+                if list_empty   // a batch of pages are allocated each time from buddy
+                  rmqueue_bulk  // allocate a batch of pages
+                    __rmqueue
+                      __rmqueue_smallest
+                      for (passin-order to MAX_ORDER)
+                        area = &(zone->free_area[current_order]);
+                        page = get_page_from_free_area(area, migratetype) ==> list_first_entry_or_null
+                        if (!page) continue;
+                        del_page_from_free_area(page, area)  ==> list_del(&page->lru)
+                        expand(zone, page, order, current_order, area, migratetype);
+                          set_page_guard
+                          INIT_LIST_HEAD(&page->lru)
+                          page->private = order
+                        page->index = migratetype;
+                list_first_entry(list)
+              local_irq_restore
+          if flag ALLOC_HARDER
+            __rmqueue_smallest
+            __rmqueue  
+		    prep_new_page
+          kernel_init_free_pages
+          clear highmen for 1 << order pages
 
-    prep_new_page
+
+	/*
+	 * It's possible on a UMA machine to get through all zones that are
+	 * fragmented. If avoiding fragmentation, reset and try again.
+	 */
+	if (no_fallback) {
+		alloc_flags &= ~ALLOC_NOFRAGMENT;
+		goto retry;
+	}
+
+	return NULL;
+}
 ```
 
 #### mm/gup.c
