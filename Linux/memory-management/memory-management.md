@@ -181,6 +181,9 @@ No-MMU memory mapping support
 
 NUMA Memory Policy
 > “memory policy” determines from which node the kernel will allocate memory in a NUMA system
+> System Default Policy; Task/Process Policy; VMA Policy; Shared Policy
+
+> A NUMA memory policy consists of a “mode”, optional mode flags, and an optional set of nodes. The mode determines the behavior of the policy, the optional mode flags determine the behavior of the mode, and the optional set of nodes can be viewed as the arguments to the policy behavior.
 
 
 ```
@@ -188,7 +191,75 @@ numactl --show
 /sys/devices/system/node/online
 /proc/$PID/task/$TASK/numa_maps
 
+set_mempolicy
+get_mempolicy
+mbind   //mbind() installs the policy specified by as a VMA policy for the range of the calling task’s address space
+numactl
 ```
 
+```
+/sys/devices/system/node/nodeX/access0/targets/
+/sys/devices/system/node/nodeY/access0/initiators/
+/sys/devices/system/node/nodeX/memory_side_cache/
+```
+
+* /proc/pid/pagemap
+> lets a userspace process find out which physical frame each virtual page is mapped to. It contains one 64-bit value for each virtual page
+
+* /proc/kpagecount
+> contains a 64-bit count of the number of times each page is mapped, indexed by PFN
+
+* /proc/kpageflags
+> contains a 64-bit set of flags for each page, indexed by PFN
+
+* /proc/kpagecgroup
+> a 64-bit inode number of the memory cgroup each page is charged to, indexed by PFN
+
+```
+echo 4 > /proc/PID/clear_refs //Clear soft-dirty bits from the task’s PTEs
+```
+
+Transparent Hugepage Support (THP)
+> Performance critical computing applications dealing with large memory working sets are already running on top of libhugetlbfs and in turn hugetlbfs. Transparent HugePage Support (THP) is an alternative mean of using huge pages for the backing of virtual memory with huge pages that supports the automatic promotion and demotion of page sizes and without the shortcomings of hugetlbfs.
+
+> With THP, the TLB miss will run faster, and a single TLB entry will be mapping a much larger amount of virtual memory in turn reducing the number of TLB misses.
+
+> Unless THP is completely disabled, there is khugepaged daemon that scans memory and collapses sequences of basic pages into huge pages
+
+> The THP behaviour is controlled via sysfs interface and using _madvise_ and _prctl_ system calls
+```
+echo always >/sys/kernel/mm/transparent_hugepage/enabled
+echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
+echo never >/sys/kernel/mm/transparent_hugepage/enabled
+
+echo always >/sys/kernel/mm/transparent_hugepage/defrag
+echo defer >/sys/kernel/mm/transparent_hugepage/defrag
+echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
+echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
+echo never >/sys/kernel/mm/transparent_hugepage/defrag
+
+echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+/sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
+/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
+/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
+...
+
+grep Huge /proc/meminfo  
+grep AnonHugePages /proc/PID/smaps
+egrep "thp|compact" /proc/vmstat
+```
+
+> Transparent Hugepage Support maximizes the usefulness of free memory if compared to the reservation approach of hugetlbfs by allowing all unused memory to be used as cache or other movable (or even unmovable entities). It doesn’t require reservation to prevent hugepage allocation failures to be noticeable from userland. It allows paging and all other advanced VM features to be available on the hugepages. It requires no modifications for applications to take advantage of it.
+
+Userfaultfd [Userfaultfd Man page](https://man7.org/linux/man-pages/man2/userfaultfd.2.html)
+> Userfaults allow the implementation of on-demand paging from userland and more generally they allow userland to take control of various memory page faults
+
+* read/POLLIN protocol to notify a userland thread of the faults happening
+* various UFFDIO_* ioctls that can manage the virtual memory regions registered in the userfaultfd that allows userland to efficiently resolve the userfaults it receives via 1) or to manage the virtual memory in the background
+
+> QEMU/KVM is using the userfaultfd syscall to implement postcopy live migration. Postcopy live migration is one form of memory externalization consisting of a virtual machine running with part or all of its memory residing on a different node in the cloud. The userfaultfd abstraction is generic enough that not a single line of KVM kernel code had to be modified in order to add postcopy live migration to QEMU.
+
+* Read the details here about how QEMU uses Userfaultfd
 
 [Documentation for /proc/sys/vm/](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/vm.html)
