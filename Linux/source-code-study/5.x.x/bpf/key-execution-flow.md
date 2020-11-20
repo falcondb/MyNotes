@@ -30,7 +30,7 @@
 
 	/* run eBPF verifier */
 	bpf_check(&prog, attr, uattr);
-
+    // see notes below
 	prog = bpf_prog_select_runtime(prog, &err);
 
 	bpf_prog_alloc_id(prog);
@@ -180,4 +180,66 @@ perf_event_bpf_event()
 
 
   perf_iterate_sb  
+```
+
+### BPF helpers
+Each helper implementation is registered at its _struct bpf_func_proto_
+```
+#linux/bpf.h
+struct bpf_func_proto {
+	u64 (*func)(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
+	bool gpl_only, pkt_access;
+	enum bpf_return_type ret_type;
+	union {
+		struct {
+			enum bpf_arg_type arg1_type;
+			enum bpf_arg_type arg2_type;
+			enum bpf_arg_type arg3_type;
+			enum bpf_arg_type arg4_type;
+			enum bpf_arg_type arg5_type;
+		};
+		enum bpf_arg_type arg_type[5];
+	};
+	int *btf_id; /* BTF ids of arguments */
+};
+```
+
+kprobe_prog_func_proto          kprobe_verifier_ops
+tp_prog_func_proto              tracepoint_verifier_ops
+pe_prog_func_proto              perf_event_verifier_ops
+raw_tp_prog_func_proto          raw_tracepoint_verifier_ops
+tracing_prog_func_proto         tracing_verifier_ops
+tracing_func_proto
+bpf_get_probe_write_proto
+bpf_get_trace_printk_proto
+
+```
+struct bpf_verifier_ops {
+	/* return eBPF function prototype for verification */
+	const struct bpf_func_proto *
+	(*get_func_proto)(enum bpf_func_id func_id, const struct bpf_prog *prog);
+	bool (*is_valid_access)(...);
+	int (*gen_prologue)(...);
+	int (*gen_ld_abs)(...);
+	u32 (*convert_ctx_access)(...);
+};
+```
+
+veificer ops are registered as
+```
+static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
+	[_id] = & _name ## _verifier_ops,
+#define BPF_MAP_TYPE(_id, _ops)
+#include <linux/bpf_types.h>
+}
+```
+
+check_helper_call TO BE STUDIED
+```
+#kernel/bpf/verifier.c
+bpf_prog_load
+  bpf_check
+    do_check
+      check_helper_call
 ```

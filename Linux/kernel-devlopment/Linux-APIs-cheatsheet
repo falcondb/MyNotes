@@ -21,7 +21,7 @@ mq_notify - register for notification when a message is available, SIGEV_THREAD,
 sigqueue,pthread_sigqueue
 kill, killpg, tkill, tgkill
 
-setjmp, sigsetjmp, longjmp, siglongjmp  - 
+setjmp, sigsetjmp, longjmp, siglongjmp  -
 safe/restore the stack pointer, the instruction pointer, possibly the values of other registers and the signal mask
 save signal mask? Different implementations of POSIX behave differently, read the specifications.
 
@@ -49,7 +49,7 @@ inet_addr
 
 
 ### synchronazation ###
-futex fast user-space locking, shared by mmap/shmat 
+futex fast user-space locking, shared by mmap/shmat
 
 ### async monitoring ###
 select
@@ -70,7 +70,7 @@ mknod, mknodat - create a special or ordinary file
 fsync,  fdatasync  -  synchronize a file's in-core state with storage device
 
 ## process ##
-int atexit(void (*function)(void))    int on_exit(void (*function)(int , void *), void *arg) Test Macro Requirements for glibc 
+int atexit(void (*function)(void))    int on_exit(void (*function)(int , void *), void *arg) Test Macro Requirements for glibc
 
 _exit() terminates the calling process "immediately", no registered termination functions are called. Test Macro Requirements for glibc
 exit - cause normal process termination
@@ -107,4 +107,4 @@ _BSD_SOURCE
 _GNU_SOURCE
 _XOPEN_SOURCE ???
 
-
+/proc/kallsyms    kernel address to symbol
