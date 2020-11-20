@@ -33,11 +33,13 @@ ip route add 192.168.253.2/32 encap bpf out obj lwt_len_hist_kern.o section len_
 ```
 use _netserver_ and _netperf_ to run network benchmark
 
-## wakeup latency
-Attach points: kprobe/try_to_wake_up, tracepoint/sched/sched_switch
+## simple TC linux/samples/bpf/parse_simple/varlan/ldabs.c
 ```
-bpf_get_current_comm
-bpf_get_stackid
-
-
+tc qdisc add dev $IFC clsact
+tc filter add dev $IFC ingress bpf da obj $1 sec $2
+tc qdisc del dev $IFC clsact
 ```
+
+### varlen.c
+Handle vlan in vlan, IP tunnel (IP in IP)
+TC_ACT_SHOT, TC drops packages at _TCP:80_ and _UDP:9_. to measure the ingress code path as packets gets dropped in _ip_rcv()_
