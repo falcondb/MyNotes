@@ -59,97 +59,41 @@
 
 * bpf_prog_attach
 ```
-  /* check attr->attach_type to find the internal bpf_prog_type
-
-  bpf_prog_get_type(attr->attach_bpf_fd, ptype);
-
-  sock_map_get_from_fd
-  or cgroup_bpf_prog_attach
-  or lirc_prog_attach
-  or skb_flow_dissector_bpf_prog_attach
+SYSCALL_DEFINE3(bpf
+  bpf_prog_attach
+    /* check attr->attach_type to find the internal bpf_prog_type
+    bpf_prog_get_type(attr->attach_bpf_fd, ptype);
+    sock_map_get_from_fd   // for BPF_PROG_TYPE_SK_SKB or BPF_PROG_TYPE_SK_MSG
+    or cgroup_bpf_prog_attach
 
 ```
 * sock_map_get_from_fd
 ```
 /* include/linux/bpf.h, net/core/sock_map.c
-sock_map_get_from_fd() ==> sock_map_prog_update() {
-  // include/uapi/linux/bpf.h
-  case BPF_SK_MSG_VERDICT:
-  /* include/liinux/skmsg.h psock_set_prog ==> xchg (e.g., asm-generic/atomic-instrumented.h)
-    xchg ==> kasan_check_write;
-             arch_xchg ==> __xchg_wrapper (arch/arm64/include/asm/cmpxchg.h) ==>
-             __xchg_case_##name##sz : asm code
-
-    struct sk_psock_progs {
-     	struct bpf_prog			*msg_parser;
-     	struct bpf_prog			*skb_parser;
-     	struct bpf_prog			*skb_verdict;
-     };  
-  */
-  psock_set_prog(&progs->msg_parser, prog);
-case BPF_SK_SKB_STREAM_PARSER:
-  psock_set_prog(&progs->skb_parser, prog);
-case BPF_SK_SKB_STREAM_VERDICT:
-  psock_set_prog(&progs->skb_verdict, prog);
+sock_map_get_from_fd ==> sock_map_prog_update
+  struct sk_psock_progs *progs = sock_map_progs(map)
+  reset the target struct bpf_prog in sk_psock_progs
 }
 ```
 
 * cgroup_bpf_prog_attach in kernel/bpf/cgroup
 ```
-cgroup_bpf_prog_attach(const union bpf_attr *attr,
-			   enum bpf_prog_type ptype, struct bpf_prog *prog) {
-  cgroup_get_from_fd(attr->target_fd);
-  cgroup_bpf_attach()
-}
-
-
-/* cgroup_bpf_attach(): __cgroup_bpf_*() protected by cgroup_mutex in cgroup/cgroup.h */
-__cgroup_bpf_attach() {
-  int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
-			enum bpf_attach_type type, u32 flags)
-{
-	for_each_cgroup_storage_type(stype) {
-		storage[stype] = bpf_cgroup_storage_alloc(prog, stype);
-	}
-
-	if (flags & BPF_F_ALLOW_MULTI) {
-    ...
-	} else {
-		if (list_empty(progs)) {
-			kmalloc(sizeof(*pl), GFP_KERNEL);
-			list_add_tail(&pl->node, progs);
-		} else {
-			pl = list_first_entry(progs, typeof(*pl), node);
-			old_prog = pl->prog;
-			for_each_cgroup_storage_type(stype) {
-				old_storage[stype] = pl->storage[stype];
-				bpf_cgroup_storage_unlink(old_storage[stype]);
-			}
-		}
-		pl->prog = prog;
-		for_each_cgroup_storage_type(stype)
-			pl->storage[stype] = storage[stype];
-	}
-
-	cgrp->bpf.flags[type] = flags;
-
-	update_effective_progs(cgrp, type);
-
-	static_branch_inc(&cgroup_bpf_enabled_key);
-	for_each_cgroup_storage_type(stype) {
-		if (!old_storage[stype])
-			continue;
-		bpf_cgroup_storage_free(old_storage[stype]);
-	}
-	if (old_prog) {
-		bpf_prog_put(old_prog);
-		static_branch_dec(&cgroup_bpf_enabled_key);
-	}
-	for_each_cgroup_storage_type(stype)
-		bpf_cgroup_storage_link(storage[stype], cgrp, type);
-	return 0;
-}      
-  }
+cgroup_bpf_prog_attach
+  cgroup_get_from_fd
+  cgroup_bpf_attach ==> mutex_lock  __cgroup_bpf_attach
+    bpf_cgroup_storage_alloc
+      kmalloc for struct bpf_cgroup_storage and BPF map
+      kmalloc for struct bpf_prog_list   list_add_tail
+    update_effective_progs
+      	/* allocate and recompute effective prog arrays */
+        css_for_each_descendant_pre //struct cgroup_subsys_state
+          compute_effective_progs
+        /* all allocations were successful. Activate all prog arrays */
+  	    css_for_each_descendant_pre
+          activate_effective_progs
+            rcu_replace_pointer
+    bpf_cgroup_storage_link
+      update struct bpf_cgroup_storage
 ```
 
 * BPF Prog Run
@@ -177,8 +121,6 @@ perf_event_bpf_event()
   PERF_BPF_EVENT_PROG_LOAD || PERF_BPF_EVENT_PROG_UNLOAD ==>
       perf_event_bpf_emit_ksymbols ==>
         perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_BPF, ...)
-
-
   perf_iterate_sb  
 ```
 

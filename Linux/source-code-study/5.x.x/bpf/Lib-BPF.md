@@ -291,3 +291,12 @@ bpf_object__load_xattr
   bpf_object__probe_caps
 
 ```
+
+
+## libbpf/src/bpf.c
+
+```
+bpf_load_program
+	bpf_load_program_xattr
+		sys_bpf_prog_load
+			sys_bpf(BPF_PROG_LOAD, attr, size)
