@@ -392,6 +392,14 @@ struct bpf_tcp_sock {
 };
 ```
 
+```
+struct sk_psock_progs {
+  struct bpf_prog			*msg_parser;
+  struct bpf_prog			*skb_parser;
+  struct bpf_prog			*skb_verdict;
+ };
+```
+
 * struct bpf_sock_tuple
 
 * enum xdp_action

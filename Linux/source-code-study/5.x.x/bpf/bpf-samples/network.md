@@ -60,9 +60,19 @@ Raw BPF byte code of setting mark and priority in _bpf_sock_
 bpf_load_program(BPF_PROG_TYPE_CGROUP_SOCK, prog, ...)
 ```
 
-User space of set socket opts
+Set socket opts in userspace
 ```
 getsockopt(SO_BINDTODEVICE,...)
 getsockopt(SO_MARK,...)
 getsockopt(SO_PRIORITY,...)
 ```
+
+## Parse different L2 and L3 protocols linux/samples/bpf/sockex3_kern.c
+L2: IP, IPv6, vlan, MPLS
+  * keep the package offset where we have parsed to _skb.cb_ and call _bpf_tail_call_
+L3: ICMP, TCP, UDP, IPPROTO_GRE, IPPROTO_IPIP, IPPROTO_IPV6
+Where is the code adding the BPF program (their fds) to the jmp_table (BPF_MAP_TYPE_PROG_ARRAY) for the BPF tail calls??
+
+## Test BPF maps at spin lock kprobes spintest_kern.c
+Test BPF hash map, percpu hash map and stackmap, attach programs to spin lock kprobes.
+Refer how to generate same BPF program at different attach points using C macro
