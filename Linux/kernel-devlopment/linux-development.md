@@ -15,13 +15,17 @@
 ## System Call
 
 [Anatomy of a system call, part 1](https://lwn.net/Articles/604287/)
-The SYSCALL_DEFINEn micro; Syscall table for call number;
 x86_64 syscall invocation: sys_call_table with kernel function addresses, RAX for the function number in the table
 wrmsrl instruction writes to model-specific register,  MSR_LSTAR in x86_64, copy registers to kernel registers and
 call the function address
+See my note about `syscall.h` in 5.x linux release.
 
 [Anatomy of a system call, part 2](https://lwn.net/Articles/604515/)
 Anatomy of system call implementation in the x86 32 and 64 architecture.
+_sys_call_table_ is accessed from the _ia32_sysenter_target_ entry point of `arch/x86/kernel/entry_32.S`
+The location of the _ia32_sysenter_target_ entry point gets written to a _model-specific register (MSR)_ at kernel start (`in enable_sep_cpu()`)
+_MSR_IA32_SYSENTER_EIP (0x176)_ handles the _SYSENTER_ instruction
+64-bit programs use the _SYSCALL_ instruction; Modern 32-bit programs use the _SYSENTER_ instruction; Ancient 32-bit programs use the `INT 0x80` instruction to trigger a software interrupt handler
 Introduction of vDSO, unfortunately the [post](http://www.trilithium.com/johan/2005/08/linux-gate/) by Johan Petersson is not available any more.
 A little bit about ptrace(): syscall tracing
 
