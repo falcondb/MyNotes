@@ -1,3 +1,8 @@
+### network information from sysfs and proc filesystems
+* link level information in `/sys/class/net`, e.g., `/sys/class/net/$DEV/address` MAC address; `/sys/class/net/$DEV/dev_id` if_index; mtu; type; queues; statistics;
+* IP level information in `/proc/net` or `/proc/$PID/net`
+  * `/proc/net/nf_conntrack` conntract connections; `/proc/net/dev` statistics; `/proc/net/fib_trie` IP addresses; TCP/UDP/ICMP statistics; `/proc/$PID/fd`
+
 ### Network interfaces
 [Introduction to Linux interfaces for virtual networking](https://developers.redhat.com/blog/2018/10/22/introduction-to-linux-interfaces-for-virtual-networking/)
 * Bridge: It forwards packets between interfaces that are connected to it.
@@ -55,6 +60,13 @@ tcpdump -i nlmon0 -w nlmsg.pcap
     * eth head -> Outer IPV4 header (type == 4) -> Inner IPV4 header
     * IPIP tunnel supports both IP over IP and MPLS over IP.
     * local IP; remote IP
+    `modprobe ipip`
+    [Tunneling: IPIP Encapsulation](https://www.oreilly.com/library/view/wireless-hacks/0596005598/ch04s13.html)
+    > an IP tunnel is much like a VPN, except that not every IP tunnel involves encryption. A machine that is “tunneled” into another network has a virtual interface configured with an IP address that isn’t local, but exists on a remote network
+
+    > If you want to perform simple IP-within-IP tunneling between two machines, you might try IPIP. It is also only capable of tunneling unicast packets; if you need to tunnel multicast traffic, take a look at GRE tunneling
+
+
 * SIT Tunnel: Simple Internet Transition
     * IPV4 type == 41 /* IPv6-in-IPv4 tunnelling */ ?! Not sure about it. TODO: Verify it later.
     * eth head -> Outer IPV4 header (type == 41?) -> Inner IPV6 header.

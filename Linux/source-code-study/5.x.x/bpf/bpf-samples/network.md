@@ -76,3 +76,11 @@ Where is the code adding the BPF program (their fds) to the jmp_table (BPF_MAP_T
 ## Test BPF maps at spin lock kprobes spintest_kern.c
 Test BPF hash map, percpu hash map and stackmap, attach programs to spin lock kprobes.
 Refer how to generate same BPF program at different attach points using C macro
+
+
+## TC L2 redirect tc_l2_redirect*
+Populate a tunnel protocol information in `skb` before call `BPF_redirect`.
+```
+bpf_skb_set_tunnel_key(skb, ...)
+bpf_redirect(*ifindex, flag)
+```
