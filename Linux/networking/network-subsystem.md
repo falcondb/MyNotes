@@ -150,7 +150,7 @@ The handle is used as the target in classid and flowid phrases of `tc` filter st
 [Understanding tc “direct action” mode for BPF](https://qmonnet.github.io/whirl-offload/2020/04/11/tc-bpf-direct-action/)
 As classifiers, eBPF brings more flexibility for parsing programs, and even allows stateful processing or interaction with user-space. they return a value that can be 0 for a mismatch, -1 for a match, or any other class identifier.
 
- eBPF classifiers alone are enough to filter and process the packets, and do not need additional qdiscs or classes to be attached to them. To avoid to add such simple TC actions and to simplify those use cases where the classifier does all the work, a new flag was added to TC for eBPF classifiers: direct-action, also available as da for short.  This flag tells the system that the return value from the filter should be considered as the one of an action instead _TC_ACT_SHOT_, _TC_ACT_OK_
+eBPF classifiers alone are enough to filter and process the packets, and do not need additional qdiscs or classes to be attached to them. To avoid to add such simple TC actions and to simplify those use cases where the classifier does all the work, a new flag was added to TC for eBPF classifiers: direct-action, also available as _da_ for short.  This flag tells the system that the return value from the filter should be considered as the one of an action instead _TC_ACT_SHOT_, _TC_ACT_OK_
 
 eBPF actions could still be used after other filters.
 
