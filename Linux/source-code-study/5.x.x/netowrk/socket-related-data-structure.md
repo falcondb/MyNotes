@@ -373,6 +373,8 @@ struct sock {
 	struct rcu_head		sk_rcu;
 };
 ```
+* sk_write_queue & sk_send_head
+all pending output data packets header by `sk_write_queue`, `sk_send_head`, maintains where in the queue the next packet is to be sent
 
 #### linux/net.h
 ```

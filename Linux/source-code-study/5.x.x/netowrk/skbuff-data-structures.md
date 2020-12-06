@@ -186,3 +186,62 @@ struct skb_shared_info {
 };
 
 ```
+From book _Linux Device Drivers_
+* `struct net_device *rx_dev, *dev`
+The devices receiving and sending this buffer, respectively.
+
+From [David Miller's blog](http://vger.kernel.org/~davem/skb.html)
+`struct net_device	*dev, *input_dev, *real_dev;`
+These three members help keep track of the devices assosciated with a packet. The reason we have three different device pointers is that the main 'skb->dev' member can change as we encapsulate and decapsulate via a virtual device.
+
+So if we are receiving a packet from a device which is part of a bonding device instance, initially 'skb->dev' will be set to point the real underlying bonding slave. When the packet enters the networking (via 'netif_receive_skb()') we save 'skb->dev' away in 'skb->real_dev' and update 'skb->dev' to point to the bonding device.
+
+Likewise, the physical device receiving a packet always records itself in 'skb->input_dev'. In this way, no matter how many layers of virtual devices end up being decapsulated, 'skb->input_dev' can always be used to find the top-level device that actually received this packet from the network.
+
+From Linux 5.x source code, there is only one `struct net_device *dev` and its comment `@dev: Device we arrived on/are leaving by`.
+
+* `union { /* ... */ } h; , union { /* ... */ } nh; , union { /*... */} mac;`
+Pointers to the various levels of headers contained within the packet. Each field of the unions is a pointer to a different type of data structure. `h` hosts pointers to transport layer headers (for example, `struct tcphdr *th`); `nh` includes network layer headers (such as `struct iphdr *iph`); and `mac` collects pointers to link layer headers (such as `struct ethdr *ethernet`). Note that network drivers are responsible for setting the mac pointer for incoming packets. This task is normally handled by `ether_type_trans`, but non-Ethernet drivers will have to set `skb->mac.raw` directly.
+
+In Linux 5.x, `union h, nh, mac` became `transport_header network_header mac_header`
+
+* `unsigned char *head; , unsigned char *data; , unsigned char *tail; , unsigned char *end;`
+Pointers used to address the data in the packet. _head is the beginning of the allocated space_, _data the beginning of the valid octets_ , _tail is the end of the valid octets_, and _end points to the maximum address tail can reach_. Another way to look at it is that the available buffer space is `skb->end - skb->head`, and the currently used data space is `skb->tail - skb->data`.
+
+[David Miller's skbuff size blog](http://vger.kernel.org/~davem/skb_data.html)
+
+* `unsigned long len;`
+The length of the data itself (`skb->tail - skb->data`).
+
+* `data_len`
+`skb->data_len` tells how many bytes of paged data (from file system) there are in the _skb_.
+`skb_headlen() ==>  skb->len - skb->data_len`
+
+when there is paged data, the packet begins at `skb->data` for `skb_headlen()` bytes, then continues on into the paged data area for `skb->data_len` bytes. That is why it is illogical to try and do a `skb_put()` when there is paged data. You have to add data onto the end of the paged data area instead
+
+* `_skb_refdst`
+This member is the generic route for the packet. It tells us how to get the packet to it's destination
+
+* `char cb[48]`
+This is the SKB control block. It is an opaque storage area usable by protocols, and even some drivers, to store private per-packet information. TCP uses this, for example, to store sequence numbers and retransmission state for the frame.
+
+
+
+* `struct sk_buff *alloc_skb(unsigned int len, int priority);` & `void kfree_skb(struct sk_buff *skb);`
+Allocate a buffer and free a buffer.
+
+* `unsigned char *skb_put(struct sk_buff *skb, int len); unsigned char *__skb_put(struct sk_buff *skb, int len);`
+These inline functions update the tail and len fields of the sk_buff structure; they are used to add data to the end of the buffer. Each function’s return value is the previous value of skb->tail
+
+
+* `unsigned char *skb_push(struct sk_buff *skb, int len); unsigned char *__skb_push(struct sk_buff *skb, int len);`
+These functions decrement skb->data and increment skb->len. They are similar to skb_put, except that data is added to the beginning of the packet instead of the end. The return value points to the data space just created.
+
+* `unsigned char *skb_pull(struct sk_buff *skb, int len);`
+Removes data from the head of the packet.
+
+* `int skb_tailroom(struct sk_buff *skb);` & `int skb_headroom(struct sk_buff *skb);`
+This function returns the amount of space available for putting data in the buffer & the amount of space available in front of data
+
+* `void skb_reserve(struct sk_buff *skb, int len);`
+This function increments both data and tail.
