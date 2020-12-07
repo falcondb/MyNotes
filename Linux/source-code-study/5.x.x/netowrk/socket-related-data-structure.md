@@ -266,11 +266,10 @@ struct sock {
 	} sk_backlog;
 
 	int			sk_forward_alloc;
-#ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int		sk_ll_usec;
 	/* ===== mostly read cache line ===== */
 	unsigned int		sk_napi_id;
-#endif
+
 	int			sk_rcvbuf;
 
 	struct sk_filter __rcu	*sk_filter;
@@ -278,9 +277,7 @@ struct sock {
 		struct socket_wq __rcu	*sk_wq;
 		struct socket_wq	*sk_wq_raw;
 	};
-#ifdef CONFIG_XFRMstruct sock
 	struct xfrm_policy __rcu *sk_policy[2];
-#endif
 	struct dst_entry	*sk_rx_dst;
 	struct dst_entry __rcu	*sk_dst_cache;
 	atomic_t		sk_omem_alloc;
@@ -314,7 +311,6 @@ struct sock {
 	unsigned int		sk_gso_max_size;
 	gfp_t			sk_allocation;
 	__u32			sk_txhash;
-
 	unsigned int		__sk_flags_offset[0];
 	unsigned int		sk_padding : 1,
 				sk_kern_sock : 1,
@@ -341,17 +337,13 @@ struct sock {
 	u8			sk_shutdown;
 	u32			sk_tskey;
 	atomic_t		sk_zckey;
-
 	u8			sk_clockid;
 	u8			sk_txtime_deadline_mode : 1,
 				sk_txtime_report_errors : 1,
 				sk_txtime_unused : 6;
-
 	struct socket		*sk_socket;
 	void			*sk_user_data;
-#ifdef CONFIG_SECURITY
 	void			*sk_security;
-#endif
 	struct sock_cgroup_data	sk_cgrp_data;
 	struct mem_cgroup	*sk_memcg;
 	void			(*sk_state_change)(struct sock *sk);
@@ -360,16 +352,9 @@ struct sock {
 	void			(*sk_error_report)(struct sock *sk);
 	int			(*sk_backlog_rcv)(struct sock *sk,
 						  struct sk_buff *skb);
-#ifdef CONFIG_SOCK_VALIDATE_XMIT
-	struct sk_buff*		(*sk_validate_xmit_skb)(struct sock *sk,
-							struct net_device *dev,
-							struct sk_buff *skb);
-#endif
 	void                    (*sk_destruct)(struct sock *sk);
 	struct sock_reuseport __rcu	*sk_reuseport_cb;
-#ifdef CONFIG_BPF_SYSCALL
 	struct bpf_sk_storage __rcu	*sk_bpf_storage;
-#endif
 	struct rcu_head		sk_rcu;
 };
 ```
@@ -401,66 +386,35 @@ struct socket {
 struct proto_ops {
 	int		family;
 	struct module	*owner;
-	int		(*release)   (struct socket *sock);
-	int		(*bind)	     (struct socket *sock,
-				      struct sockaddr *myaddr,
-				      int sockaddr_len);
-	int		(*connect)   (struct socket *sock,
-				      struct sockaddr *vaddr,
-				      int sockaddr_len, int flags);
-	int		(*socketpair)(struct socket *sock1,
-				      struct socket *sock2);
-	int		(*accept)    (struct socket *sock,
-				      struct socket *newsock, int flags, bool kern);
-	int		(*getname)   (struct socket *sock,
-				      struct sockaddr *addr,
-				      int peer);
-	__poll_t	(*poll)	     (struct file *file, struct socket *sock,
-				      struct poll_table_struct *wait);
-	int		(*ioctl)     (struct socket *sock, unsigned int cmd,
-				      unsigned long arg);
-#ifdef CONFIG_COMPAT
-	int	 	(*compat_ioctl) (struct socket *sock, unsigned int cmd,
-				      unsigned long arg);
-#endif
-	int		(*gettstamp) (struct socket *sock, void __user *userstamp,
-				      bool timeval, bool time32);
-	int		(*listen)    (struct socket *sock, int len);
-	int		(*shutdown)  (struct socket *sock, int flags);
-	int		(*setsockopt)(struct socket *sock, int level,
-				      int optname, char __user *optval, unsigned int optlen);
-	int		(*getsockopt)(struct socket *sock, int level,
-				      int optname, char __user *optval, int __user *optlen);
-#ifdef CONFIG_COMPAT
-	int		(*compat_setsockopt)(struct socket *sock, int level,
-				      int optname, char __user *optval, unsigned int optlen);
-	int		(*compat_getsockopt)(struct socket *sock, int level,
-				      int optname, char __user *optval, int __user *optlen);
-#endif
-	int		(*sendmsg)   (struct socket *sock, struct msghdr *m,
-				      size_t total_len);
-	/* Notes for implementing recvmsg:
-	 * ===============================
-	 * msg->msg_namelen should get updated by the recvmsg handlers
-	 * iff msg_name != NULL. It is by default 0 to prevent
-	 * returning uninitialized memory to user space.  The recvfrom
-	 * handlers can assume that msg.msg_name is either NULL or has
-	 * a minimum size of sizeof(struct sockaddr_storage).
-	 */
-	int		(*recvmsg)   (struct socket *sock, struct msghdr *m, ...)
-	int		(*mmap)	     (struct file *file, struct socket *sock, struct vm_area_struct * vma);
-	ssize_t		(*sendpage)  (struct socket *sock, struct page *page,...);
-	ssize_t 	(*splice_read)(struct socket *sock,  loff_t *ppos, struct pipe_inode_info *pipe, ...);
-	int		(*set_peek_off)(struct sock *sk, int val);
-	int		(*peek_len)(struct socket *sock);
+	int		(*release)   ();
+	int		(*bind)	     ();
+	int		(*connect)   ();
+	int		(*socketpair)();
+	int		(*accept)    ();
+	int		(*getname)   ();
+	__poll_t	(*poll)	     ();
+	int		(*ioctl)     ();
+	int	 	(*compat_ioctl) ();
+	int		(*gettstamp) ();
+	int		(*listen)    ();
+	int		(*shutdown)  ();
+	int		(*setsockopt)();
+	int		(*getsockopt)();
+	int		(*compat_setsockopt)();
+	int		(*compat_getsockopt)();
+	int		(*sendmsg)   ();
+	int		(*recvmsg)   ()
+	int		(*mmap)	     ();
+	ssize_t		(*sendpage)  ();
+	ssize_t 	(*splice_read)();
+	int		(*set_peek_off)();
+	int		(*peek_len)();
 
-	/* The following functions are called internally by kernel with
-	 * sock lock already held.
-	 */
-	int		(*read_sock)(struct sock *sk, read_descriptor_t *desc, sk_read_actor_t recv_actor);
-	int		(*sendpage_locked)(struct sock *sk, struct page *page, ...);
-	int		(*sendmsg_locked)(struct sock *sk, struct msghdr *msg, size_t size);
-	int		(*set_rcvlowat)(struct sock *sk, int val);
+	/* The following functions are called internally by kernel with sock lock already held.	 */
+	int		(*read_sock)();
+	int		(*sendpage_locked)();
+	int		(*sendmsg_locked)();
+	int		(*set_rcvlowat)();
 };
 
 
