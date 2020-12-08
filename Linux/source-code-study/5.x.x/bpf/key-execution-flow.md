@@ -98,17 +98,15 @@ cgroup_bpf_prog_attach
 
 * BPF Prog Run
 ```
-BPF_PROG_RUN_ARRAY ==> __BPF_PROG_RUN_ARRAY
-_item = &_array->items[0];
-while ((_prog = READ_ONCE(_item->prog))) {		\
-  bpf_cgroup_storage_set(_item->cgroup_storage);	\
-  _ret &= func(_prog, ctx);	\
-  _item++;			\
-}
+# linux/filter.h
+BPF_PROG_RUN(prog, ctx)   //  struct bpf_pro prog
+ (*(prog)->bpf_func)(ctx, (prog)->insnsi)
 
-#define BPF_PROG_RUN(prog, ctx)	({				\
- (*(prog)->bpf_func)(ctx, (prog)->insnsi);	\
-	})
+# linux/bpf.h
+BPF_PROG_RUN_ARRAY  ==> __BPF_PROG_RUN_ARRAY(array, ctx, func, false) // func = BPF_PROG_RUN
+  preempt_disable()
+  rcu_read_lock()
+  for each _item->prog  ==>  func(_prog, ctx)  
 ```
 
 ```

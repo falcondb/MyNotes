@@ -17,6 +17,31 @@ ps -axgo comm,sess,pgrp
 
 >net_cl and net_prio apply just to that cgroup and any sockets associated with processes in that cgroup. They do not automatically apply to sockets in processes in child cgroups.
 
+[Network classifier cgroup, net_cls](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/net_cls.html)
+```
+mount -t cgroup -onet_cls net_cls /sys/fs/cgroup/net_cls
+echo 0x100001 >  /sys/fs/cgroup/net_cls/0/net_cls.classid
+
+tc qdisc add dev eth0 root handle 10: htb
+tc class add dev eth0 parent 10: classid 10:1 htb rate 40mbit
+tc filter add dev eth0 parent 10: protocol ip prio 10 handle 1: cgroup
+iptables -A OUTPUT -m cgroup ! --cgroup 0x100001 -j DROP
+```
+
+[Network priority cgroup, net_prio](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/net_prio.html)
+ominally, an application would set the priority of its traffic via the SO_PRIORITY socket option, not always possible.
+_net_prio.prioidx_: This file is read-only, and is simply informative. It contains a unique integer value that the kernel uses as an internal representation of this cgroup.
+_net_prio.ifpriomap_: This file contains a map of the priorities assigned to traffic originating from processes in this group and egressing the system on various interfaces. It contains a list of tuples in the form `ifname priority`.
+```
+mount -t cgroup -onet_prio none /sys/fs/cgroup/net_prio
+echo "eth0 5" > /sys/fs/cgroups/net_prio/iscsi/net_prio.ifpriomap
+```
+This command would force any traffic originating from processes belonging to the iscsi net_prio cgroup and egressing on interface eth0 to have the priority of said traffic set to the value 5.
+
+Priorities are set immediately prior to queueing a frame to the device queueing discipline, so priorities will be assigned prior to the hardware queue selection being made.
+
+[TC cgroup manual](http://manpages.ubuntu.com/manpages/xenial/man8/tc-cgroup.8.html)
+
 >The devices subsystem can either allow or deny all accesses by default, and then have a list of exceptions where access is denied or allowed, respectively.
 
 >In freezer subsystem, the whole group of processes from a subgroup is stopped or restarted
@@ -111,8 +136,6 @@ mount -t cgroup -o __DEVEL__sane_behavior cgroup $MOUNT_POINT
 
 
 [Cgroup talk by Rami Rosen](https://www.youtube.com/watch?v=zMJD8PJKoYQ)
-
-RIP, Rami!
 
 Read [Resource Groups](https://lwn.net/Articles/679940/)! Seems a new generation after Cgroups
 
