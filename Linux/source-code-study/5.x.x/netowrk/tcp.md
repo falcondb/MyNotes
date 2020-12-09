@@ -184,16 +184,65 @@ inet_csk_accept
 # net/ipv4/tcp.c
 tcp_recvmsg   // copies from a sock struct into the user buffer
   SIGURG out-of-band data
-  sock_rcvlowat
   skb_queue_walk sk->sk_receive_queue
+    offset = *seq - TCP_SKB_CB(skb)->seq
+    if offset < skb->len    goto found_ok_skb   // package with the next expected seq?
 
+    skb_copy_datagram_msg  ==>  skb_copy_datagram_iter //skbuff.h
+      __skb_datagram_iter with func simple_copy_to_iter
+        simple_copy_to_iter ==> copy_to_iter // uio.h ==>  _copy_to_iter  // lib/iov_iter.c
+          // TOBESTUDIED the MACRO
+
+    tcp_rcv_space_adjust  // tpc_input.c calculates the appropriate TCP receive buffer space
+      // the receive buffer size recalcation.
+    release_sock    //sock.c
+      __release_sock
+        for skb in sock backlog
+          sk_backlog_rcv  // sk->sk_prot->backlog_rcv = tcp_v4_do_rcv for ipv4 in tcp_ipv4.c
+            See tcp_v4_do_rcv section
 
 ```
 
+* `tcp_sendmsg`
+```
+# tpc.c
+tcp_sendmsg
+  lock_sock  with  sk->sk_lock.wq
+  tcp_sendmsg_locked
+    sk_stream_wait_connect
+    more data left after segment
+      tcp_write_queue_tail    // sk->sk_write_queue's skb_head->next
+      tcp_rtx_and_write_queues_empty
+      sk_stream_alloc_skb
+        alloc_skb_fclone   ==>   __alloc_skb
+        skb_reserve(sk_prot->max_header)
+      skb_entail
+        tcp_add_write_queue_tail
+        tcp_slow_start_after_idle_check
+      tcp_push
+        __tcp_push_pending_frames
+          tcp_write_xmit
+```
 
+* `tcp_v4_do_rcv`
+```
+# tcp_ipv4.c
+tcp_v4_do_rcv for ipv4 and ipv6 in tcp_ipv4.c
+  sk = __inet_lookup_skb  ==>  __inet_lookup    //inet_hashtables.h
+    __inet_lookup_established or  __inet_lookup_listener    //inet_hashtables.c
+      inet_ehashfn(net, daddr, hnum, saddr, sport)    ==>   __inet_ehashfn
+          jhash_3words    // Jenkins hash function
+      INET_MATCH(sk, net, acookie, saddr, daddr, ports, dif, sdif))
+```
 
 
 ### TCP common
+# `alloc_skb`
+```
+# skbuff.c
+  see skbuff-execution.md
+```
+
 * `tcp_call_bpf`
 ```
 BPF_CGROUP_RUN_PROG_SOCK_OPS    //bpf-cgroup.h
