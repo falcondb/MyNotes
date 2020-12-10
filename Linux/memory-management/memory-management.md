@@ -18,7 +18,6 @@
   * `struct page.flags`: PG_locked, locked in memory; PG_reserved, prevents the memory management system from working with the page at all.
 
 
-
 ### Understanding the Linux Virtual Memory Manager by Mel Gorman
 
 #### Chapter 6  Physical Page Allocation

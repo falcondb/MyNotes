@@ -65,7 +65,6 @@ Optimized spin locks
 >for the x86 architecture, the current spin lock implementation uses a queued spin lock where the CPU cores spin on different locks (hopefully distributed in different cache lines) to avoid cache invalidation operations
 
 
-
 Process and Interrupt Context Synchronization
 >* In process context: disable interrupts and acquire a spin lock; this will protect both against interrupt or other CPU cores race conditions (spin_lock_irqsave() and spin_lock_restore() combine the two operations)
 
