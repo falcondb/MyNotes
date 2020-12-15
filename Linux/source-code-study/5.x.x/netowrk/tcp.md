@@ -1,4 +1,5 @@
 ## TCP
+TCP is just too complex to me. Need more time to consume it.
 
 ### TCP output
 [David Milller's blog on TCP output](http://vger.kernel.org/~davem/tcp_output.html)
@@ -224,20 +225,41 @@ tcp_sendmsg
           tcp_write_xmit
 ```
 
+
 * `tcp_v4_do_rcv`
 ```
 # tcp_ipv4.c
-tcp_v4_do_rcv for ipv4 and ipv6 in tcp_ipv4.c
-  sk = __inet_lookup_skb  ==>  __inet_lookup    //inet_hashtables.h
-    __inet_lookup_established or  __inet_lookup_listener    //inet_hashtables.c
-      inet_ehashfn(net, daddr, hnum, saddr, sport)    ==>   __inet_ehashfn
-          jhash_3words    // Jenkins hash function
-      INET_MATCH(sk, net, acookie, saddr, daddr, ports, dif, sdif))
+tcp_v4_do_rcv
+  if sk->sk_state == TCP_ESTABLISHED
+    tcp_rcv_established
+      // the fast path when recved seq is the expect and the previous is acked
+        tcp_ack
+          tcp_ack_update_window            
+          tcp_in_ack_event
+            inet_connection_sock->icsk_ca_ops(struct tcp_congestion_ops)->in_ack_event(struct tcp_congestion_ops)
+            // seems in_ack_event is not set for IPv4
+          tcp_rack_update_reo_wnd // RFC 3708
+        __kfree_skb
+        tcp_data_snd_check
+      // slow path
+
+  tcp_rcv_state_process
 ```
+Function header of `tcp_rcv_established`, the fast path of TCP receive
+> TCP receive function for the ESTABLISHED state.
+It is split into a fast path and a slow path. The fast path is
+disabled when:
+	- A zero window was announced from us - zero window probing is only handled properly in the slow path.
+  - Out of order segments arrived.
+ 	- Urgent data is expected.
+ 	- There is no buffer space left
+ 	- Unexpected TCP flags/window values/header lengths are received
+ 	- Data is sent in both directions. Fast path only supports pure senders or pure receivers (this means either the sequence number or the ack value must stay constant)
+ 	- Unexpected TCP option.
 
 
 ### TCP common
-# `alloc_skb`
+* `alloc_skb`
 ```
 # skbuff.c
   see skbuff-execution.md
@@ -251,4 +273,15 @@ BPF_CGROUP_RUN_PROG_SOCK_OPS    //bpf-cgroup.h
       struct sock_cgroup_data.val // cgroup pointer in a combination of net_cls & net_prio & cgroup
     BPF_PROG_RUN_ARRAY  ==> __BPF_PROG_RUN_ARRAY(array, ctx, func, false)
       see bpf/key-execution-flow.md
+```
+
+
+* `__inet_lookup_skb`
+
+```
+__inet_lookup_skb  ==>  __inet_lookup    //inet_hashtables.h
+    __inet_lookup_established or  __inet_lookup_listener    //inet_hashtables.c
+      inet_ehashfn(net, daddr, hnum, saddr, sport)    ==>   __inet_ehashfn
+          jhash_3words    // Jenkins hash function
+      INET_MATCH(sk, net, acookie, saddr, daddr, ports, dif, sdif))
 ```
