@@ -1,5 +1,3 @@
-
-
 [Locking lessons](linux/Documentation/locking/spinlocks.rst)
 
 
@@ -105,7 +103,7 @@ optimize prematurely; the real performance constraints often show up in unexpect
     > An atomic_t (linux/types.h) holds an int value on all supported architectures
 
   [On atomic types](linux/Documentation/atomic_t.txt)
-  
+
   - Bit Operations
     > the kernel offers a set of functions that modify or test single bits atomically. Because the whole operation happens in a single step, no interrupt
     > Atomic bit operations are very fast, since they perform the operation using a single machine instruction without disabling interrupts whenever the underlying platform

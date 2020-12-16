@@ -93,7 +93,7 @@ struct pernet_operations {
 
 #### linux/netdevice.h
 ```
-struct net_device {}
+struct net_device {
 	char			name[IFNAMSIZ];
 	struct netdev_name_node	*name_node;
 	struct dev_ifalias	__rcu *ifalias;
