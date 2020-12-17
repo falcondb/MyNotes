@@ -157,3 +157,11 @@ eBPF actions could still be used after other filters.
 the special field `tc_classid` of the `struct __skb_buff` can be used, instead of the program return value, to tell the system where to send the packet when the program allows it to pass
 
 _clsact_ is similar to the ingress qdisc, to which we can attach eBPF programs with the direct-action mode, and which does not perform any queuing. But _clsact_ acts as a superset of ingress
+
+
+## IPtables
+[A Deep Dive into Iptables and Netfilter Architecture @digitalocean](https://www.digitalocean.com/community/tutorials/a-deep-dive-into-iptables-and-netfilter-architecture)
+
+## Connection Tracking
+[Connection Tracking (conntrack): Design and Implementation Inside Linux Kernel](http://arthurchiao.art/blog/conntrack-design-and-implementation/)
+[Netfilter Connection Tracking and NAT Implementation](https://wiki.aalto.fi/download/attachments/69901948/netfilter-paper.pdf)
