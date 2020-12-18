@@ -2,6 +2,218 @@
 
 ### Key data structures
 
+* `linux/netfilter.h`
+```
+struct nf_hook_state {
+	unsigned int hook;
+	u_int8_t pf;
+	struct net_device *in;
+	struct net_device *out;
+	struct sock *sk;
+	struct net *net;
+	int (*okfn)(struct net *, struct sock *, struct sk_buff *);
+};
+```
+```
+struct nf_hook_ops {
+	nf_hookfn		        *hook;        	/* User fills in from here down. */
+	struct net_device	  *dev;
+	void			          *priv;
+	u_int8_t		        pf;
+	unsigned int		    hooknum;
+	int			            priority;
+};
+```
+
+```
+struct nf_hook_entry {
+	nf_hookfn			*hook;
+	void				*priv;
+};
+
+struct nf_hook_entries {
+	u16				num_hook_entries;
+	struct nf_hook_entry		hooks[];
+};
+```
+
+```
+struct nf_sockopt_ops {
+	struct list_head list;
+	u_int8_t pf;
+	int set_optmin,set_optmax,get_optmin,get_optmax;
+	int (*set)(struct sock *sk, int optval, void __user *user, unsigned int len);
+	int (*get)(struct sock *sk, int optval, void __user *user, int *len);
+	struct module *owner;
+};
+```
+
+* `uapi/linux/netfilter.h`
+```
+* Responses from hook functions. */
+enum nf_inet_hooks {5 hooks here}
+
+union nf_inet_addr {
+	__u32		all[4];
+	__be32		ip;
+	__be32		ip6[4];
+	struct in_addr	in;
+	struct in6_addr	in6;
+};
+
+```
+* `uapi/linux/netfilter_ipv4.h`
+```
+/* IP Hooks DEFINE*/
+enum nf_ip_hook_priorities {...}
+
+```
+
+* `net/netfilter/nf_conntrack_tuple.h`
+```
+struct nf_conntrack_tuple {    /* This contains the information to distinguish a connection. */
+	struct nf_conntrack_man src;
+	struct {
+		union nf_inet_addr u3;
+		union {     			/* Add other protocols here. */
+			__be16 all;
+			struct {			__be16 port;       	  		} tcp;
+			struct {      __be16 port;           		} udp;
+			struct {   		u_int8_t type, code;			} icmp;
+			struct {			__be16 port;              } dccp;
+			struct {			__be16 port;        			} sctp;
+			struct {			__be16 key;         			} gre;
+		} u;
+		u_int8_t protonum;
+		u_int8_t dir;     		/* The direction (for tuplehash) */
+	} dst;
+};
+
+struct nf_conntrack_man {
+	union nf_inet_addr u3;
+	union nf_conntrack_man_proto u;
+	u_int16_t l3num;
+};
+
+struct nf_conntrack_tuple_hash {
+	struct hlist_nulls_node hnnode;
+	struct nf_conntrack_tuple tuple;
+};
+
+```
+
+* `net/netfilter/nf_conntrack.h`
+```
+struct nf_conn {
+	struct nf_conntrack ct_general;
+	spinlock_t	lock;
+	u32 timeout;
+	struct nf_conntrack_tuple_hash tuplehash[IP_CT_DIR_MAX];
+	unsigned long status;
+	u16		cpu;
+	possible_net_t ct_net;
+	struct hlist_node	nat_bysource;
+	u8 __nfct_init_offset[0];
+	struct nf_conn *master;
+	u_int32_t mark;
+	u_int32_t secmark;
+	struct nf_ct_ext *ext;
+	union nf_conntrack_proto proto;    	/* Storage reserved for other modules, must be the last member */
+};
+```
+
+* `uapi/linux/netfilter/nf_conntrack_common.h`
+```
+enum ip_conntrack_info
+enum ip_conntrack_status
+enum ip_conntrack_events
+```
+
+* `nf_conntrack_l4proto.h`
+```
+struct nf_conntrack_l4proto {
+	u_int8_t l4proto;
+	u16 nlattr_size;                                     	/* protoinfo nlattr size, closes a hole */
+	bool (*can_early_drop) (const struct nf_conn *ct);    	/* called by gc worker if table is full */
+	int (*to_nlattr)       (struct sk_buff *, struct nlattr *, struct nf_conn *); 	/* convert protoinfo to nfnetink attributes */
+	int (*from_nlattr)     (struct nlattr *tb[], struct nf_conn *ct);   	        /* convert nfnetlink attributes to protoinfo */
+	int (*tuple_to_nlattr) (struct sk_buff *, struct nf_conntrack_tuple *);
+	unsigned int (*nlattr_tuple_size)  (void);
+	int (*nlattr_to_tuple) (struct nlattr *tb[], struct nf_conntrack_tuple *t);
+	const struct nla_policy *nla_policy;
+	struct {
+		int (*nlattr_to_obj)  (struct nlattr *tb[], struct net *net, void *data);
+		int (*obj_to_nlattr)  (struct sk_buff *skb, const void *data);
+		u16 obj_size, nlattr_max;
+		const struct nla_policy *nla_policy;
+	} ctnl_timeout;
+	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);   	/* Print out the private part of the conntrack. */
+};
+```
+`struct nlattr` is defined in `uapi/linux/netlink.h`, the NetLink message.
+
+
+* `net/netfilter/nf_conntrack_proto.c`
+```
+static const struct nf_hook_ops ipv4_conntrack_ops[] = {
+	{
+		.hook		= ipv4_conntrack_in,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_PRE_ROUTING,
+		.priority	= NF_IP_PRI_CONNTRACK,
+	},
+	{
+		.hook		= ipv4_conntrack_local,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_LOCAL_OUT,
+		.priority	= NF_IP_PRI_CONNTRACK,
+	},
+	{
+		.hook		= ipv4_confirm,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_POST_ROUTING,
+		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
+	},
+	{
+		.hook		= ipv4_confirm,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
+	},
+};
+```
+
+```
+static const struct nf_hook_ops ipv6_conntrack_ops[] = {
+	{
+		.hook		= ipv6_conntrack_in,
+		.pf		= NFPROTO_IPV6,
+		.hooknum	= NF_INET_PRE_ROUTING,
+		.priority	= NF_IP6_PRI_CONNTRACK,
+	},
+	{
+		.hook		= ipv6_conntrack_local,
+		.pf		= NFPROTO_IPV6,
+		.hooknum	= NF_INET_LOCAL_OUT,
+		.priority	= NF_IP6_PRI_CONNTRACK,
+	},
+	{
+		.hook		= ipv6_confirm,
+		.pf		= NFPROTO_IPV6,
+		.hooknum	= NF_INET_POST_ROUTING,
+		.priority	= NF_IP6_PRI_LAST,
+	},
+	{
+		.hook		= ipv6_confirm,
+		.pf		= NFPROTO_IPV6,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= NF_IP6_PRI_LAST - 1,
+	},
+};
+
+```
+
+
 * `nf_flow_table.h`
 
 ```
@@ -239,4 +451,55 @@ nf_flow_offload_inet_hook
     rt_nexthop(rt, flow->tuplehash[!dir].tuple.src_v4.s_addr)   // gateway or daddr
     neigh_xmit
       see routing.md
+```
+
+### NetFilter hooks
+* `ipv4_conntrack_in` in `net/netfilter/nf_conntrack_proto.c`
+```
+ipv4_conntrack_in   ==>   nf_conntrack_in   #net/netfiler/nf_conntrack_core.c
+  nf_ct_get     // get struct nf_conn, and ip_conntrack_info
+    skb_get_nfct  ==>  skb->_nfct
+      // the lowest 3 bits of skb->_nfct is the value of ip_conntrack_info, the rest higher value is the address of struct nf_conn
+  if ICMP   nf_conntrack_handle_icmp  checks ICMP header then checks IP header
+    nf_conntrack_inet_error     #net/netfiler/nf_conntrack_proto_icmp.c
+      nf_ct_get_tuplepr  ==>  nf_ct_get_tuple
+        // populate struct nf_conntrack_tuple from skb
+      nf_ct_invert_tuple
+        // invert the src and dst IPs and ports
+      nf_conntrack_find_get(innertuple)  // the ct of the inverted tuple
+        rcu_read_lock
+        __nf_conntrack_find_get
+          ____nf_conntrack_find   // search for the connection hashtable
+          // check if the tuples are equal and connection is confirmed, etc.
+      // check if the addresses of the two directions match
+      // update skb's ip_conntrack_info
+
+  resolve_normal_ct
+    nf_ct_get_tuple
+    __nf_conntrack_find_get
+    init_conntrack  if not found
+    // update skb's ip_conntrack_info
+
+```
+* `ipv4_conntrack_local`
+```
+ipv4_conntrack_local
+  nf_conntrack_in
+```
+
+* `ipv4_confirm`
+```
+ipv4_confirm
+  nf_conntrack_confirm
+    if !nf_ct_is_confirmed
+      __nf_conntrack_confirm
+        __nf_conntrack_hash_insert
+          hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL]
+          hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_REPLY]  
+
+      nf_ct_deliver_cached_events
+  nf_confirm
+    if IPS_SEQ_ADJUST_BIT       // TCP sequence adjusted
+      nf_ct_seq_adjust          // adjust TCP send seq and ack seq
+    nf_conntrack_confirm
 ```
