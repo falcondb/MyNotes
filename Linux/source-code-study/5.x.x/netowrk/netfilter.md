@@ -387,7 +387,78 @@ struct nf_flow_rule {
 };
 ```
 
-### NF INET initialization
+### NetFilter connection tracking initialization
+```
+__init nf_conntrack_standalone_init
+  nf_conntrack_init_start
+
+  register_pernet_subsys(&nf_conntrack_net_ops)	.init = nf_conntrack_pernet_init	.exit_batch	= nf_conntrack_pernet_exit,
+    nf_conntrack_pernet_init
+      nf_conntrack_standalone_init_sysctl
+      nf_conntrack_standalone_init_proc
+        proc_create_net( ct_seq_ops )   ==>  proc_create_net_data
+          proc_create_reg
+            __proc_create  // create struct proc_dir_entry
+          proc_register    // link parent directory and the dir_entry
+        proc_create_net( ct_cpu_seq_ops )
+
+      nf_conntrack_init_net
+        nf_conntrack_expect_pernet_init
+
+        nf_conntrack_acct_pernet_init
+        nf_conntrack_tstamp_pernet_init
+        nf_conntrack_ecache_pernet_init
+        nf_conntrack_helper_pernet_init
+        nf_conntrack_proto_pernet_init
+          nf_conntrack_generic_init_net
+            nf_ct_netns_do_get(net, NFPROTO_IPV4 / 6)   // usage accounting
+          nf_conntrack_udp_init_net
+          nf_conntrack_tcp_init_net
+          nf_conntrack_icmp_init_net
+      nf_ct_netns_get
+        nf_ct_netns_inet_get
+          NFPROTO_IPV4:
+            nf_defrag_ipv4_enable ==> nf_register_net_hooks( ipv4_defrag_ops )
+            nf_register_net_hooks ==> nf_register_net_hook  ==> __nf_register_net_hook
+          NFPROTO_BRIDGE:
+            nf_register_net_hooks
+    nf_conntrack_pernet_exit
+  nf_conntrack_init_end
+
+
+```
+
+```
+static const struct seq_operations ct_seq_ops = {
+	.start = ct_seq_start,
+	.next  = ct_seq_next,
+	.stop  = ct_seq_stop,
+	.show  = ct_seq_show
+};
+
+
+static const struct seq_operations ct_cpu_seq_ops = {
+	.start	= ct_cpu_seq_start,
+	.next	= ct_cpu_seq_next,
+	.stop	= ct_cpu_seq_stop,
+	.show	= ct_cpu_seq_show,
+};
+
+ct_cpu_seq_start
+  struct ct_iter_state *st = seq->private
+  nf_conntrack_get_ht(&st->hash, &st->htable_size); // get the hash and table size
+  ct_get_idx( pos ) // get list node at offset pos
+
+ct_seq_next
+  (*pos)++;
+  ct_get_next
+
+ct_cpu_seq_show
+  seq_printf
+```
+
+### NetFilter Flow initialization
+
 ```
 static struct nf_flowtable_type flowtable_inet = {
 	.family		= NFPROTO_INET,
@@ -478,6 +549,8 @@ ipv4_conntrack_in   ==>   nf_conntrack_in   #net/netfiler/nf_conntrack_core.c
     nf_ct_get_tuple
     __nf_conntrack_find_get
     init_conntrack  if not found
+      __nf_conntrack_alloc ==>  kmem_cache_alloc
+      nf_ct_add_to_unconfirmed_list
     // update skb's ip_conntrack_info
 
 ```
@@ -503,3 +576,59 @@ ipv4_confirm
       nf_ct_seq_adjust          // adjust TCP send seq and ack seq
     nf_conntrack_confirm
 ```
+
+
+### Netfilter NAT
+
+#### Key data structures
+* `net/netfileter/nf_nat_l3proto.h`
+```
+struct nf_nat_l3proto {
+	u8	l3proto;
+	bool	(*manip_pkt)    (...);
+	void	(*csum_update)  (...);
+	void	(*csum_recalc)  (...);
+	void	(*decode_session)   (...);
+	int	  (*nlattr_to_range)  (...);
+};
+```
+
+
+* `net/netfileter/nf_nat_l4proto.h`
+```
+struct nf_nat_l3proto {
+	u8	l3proto;
+	bool	(*manip_pkt)    (...);
+	void	(*csum_update)  (...);
+	void	(*csum_recalc)  (...);
+	void	(*decode_session)   (...);
+	int	  (*nlattr_to_range)  (...);
+};
+```
+
+* `net/netfilter/nf_nat_core.c`
+```
+struct nf_nat_hooks_net {
+	struct nf_hook_ops *nat_hook_ops;
+	unsigned int users;
+};
+
+
+static struct nf_nat_hook nat_hook = {
+	.parse_nat_setup	= nfnetlink_parse_nat_setup,
+	.decode_session		= __nf_nat_decode_session,
+	.manip_pkt		= nf_nat_manip_pkt,
+};
+```
+
+#### NAT initialization
+```
+__init nf_nat_init
+
+```
+
+#### NAT functions
+
+* `nfnetlink_parse_nat_setup`
+
+* `nf_nat_manip_pkt`
