@@ -391,7 +391,8 @@ struct nf_flow_rule {
 ```
 __init nf_conntrack_standalone_init
   nf_conntrack_init_start
-
+    nf_ct_alloc_hashtable
+    kmem_cache_create( struct nf_conn )
   register_pernet_subsys(&nf_conntrack_net_ops)	.init = nf_conntrack_pernet_init	.exit_batch	= nf_conntrack_pernet_exit,
     nf_conntrack_pernet_init
       nf_conntrack_standalone_init_sysctl
@@ -401,14 +402,12 @@ __init nf_conntrack_standalone_init
             __proc_create  // create struct proc_dir_entry
           proc_register    // link parent directory and the dir_entry
         proc_create_net( ct_cpu_seq_ops )
-
       nf_conntrack_init_net
         nf_conntrack_expect_pernet_init
-
         nf_conntrack_acct_pernet_init
         nf_conntrack_tstamp_pernet_init
         nf_conntrack_ecache_pernet_init
-        nf_conntrack_helper_pernet_init
+        nf_conntrack_helper_pernet_initki
         nf_conntrack_proto_pernet_init
           nf_conntrack_generic_init_net
             nf_ct_netns_do_get(net, NFPROTO_IPV4 / 6)   // usage accounting
@@ -420,8 +419,10 @@ __init nf_conntrack_standalone_init
           NFPROTO_IPV4:
             nf_defrag_ipv4_enable ==> nf_register_net_hooks( ipv4_defrag_ops )
             nf_register_net_hooks ==> nf_register_net_hook  ==> __nf_register_net_hook
+            see iptables.md
           NFPROTO_BRIDGE:
             nf_register_net_hooks
+
     nf_conntrack_pernet_exit
   nf_conntrack_init_end
 
@@ -621,14 +622,87 @@ static struct nf_nat_hook nat_hook = {
 };
 ```
 
+* `net/netfilter/nf_nat_proto.c`
+```
+static const struct nf_hook_ops nf_nat_ipv4_ops[] = {
+	/* Before packet filtering, change destination */
+	{
+		.hook		= nf_nat_ipv4_in,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_PRE_ROUTING,
+		.priority	= NF_IP_PRI_NAT_DST,
+	},
+	/* After packet filtering, change source */
+	{
+		.hook		= nf_nat_ipv4_out,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_POST_ROUTING,
+		.priority	= NF_IP_PRI_NAT_SRC,
+	},
+	/* Before packet filtering, change destination */
+	{
+		.hook		= nf_nat_ipv4_local_fn,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_LOCAL_OUT,
+		.priority	= NF_IP_PRI_NAT_DST,
+	},
+	/* After packet filtering, change source */
+	{
+		.hook		= nf_nat_ipv4_fn,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= NF_IP_PRI_NAT_SRC,
+	},
+};
+```
+
 #### NAT initialization
 ```
 __init nf_nat_init
-
+  nf_ct_alloc_hashtable
+  nf_ct_extend_register
+  register_pernet_subsys( nat_net_ops )
+  nf_ct_helper_expectfn_register
 ```
 
 #### NAT functions
 
 * `nfnetlink_parse_nat_setup`
 
+```
+nfnetlink_parse_nat_setup
+  __nf_nat_alloc_null_binding  ==>  nf_nat_setup_info
+  get_unique_tuple    
+  nf_ct_invert_tuple(&reply, &new_tuple)
+  nf_conntrack_alter_reply(ct, &reply)
+
+  if NF_NAT_MANIP_SRC
+    hash_by_src(..., &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
+    hlist_add_head_rcu(&ct->nat_bysource, &nf_nat_bysource[srchash])
+
+```
+
 * `nf_nat_manip_pkt`
+```
+// nf_nat_proto.c
+nf_nat_manip_pkt
+  nf_ct_invert_tuple(&target, &ct->tuplehash[!dir].tuple)
+  nf_nat_ipv4_manip_pkt   or   nf_nat_ipv6_manip_pkt
+
+```
+
+```
+nf_nat_ipv4_manip_pkt
+  l4proto_manip_pkt
+    xxx_manip_pkt  // the xxx_manip_pkt for different protocols
+      // tcp_manip_pkt ==> src dst port swap, nf_csum_update, inet_proto_csum_replace2
+
+  csum_replace4   // checksum.h
+```
+
+```
+nf_nat_ipv6_manip_pkt
+  ipv6_skip_exthdr
+  l4proto_manip_pkt
+  swap src and dst IPs
+```
