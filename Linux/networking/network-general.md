@@ -80,6 +80,21 @@ tcpdump -i nlmon0 -w nlmsg.pcap
 * VTI: Virtual Tunnel Interface
     * This particular tunneling driver implements IP encapsulations, which can be used with xfrm to give the notion of a secure tunnel and then use kernel routing on top.
 
+[The Linux Networking Architecture: Design and Implementation of Network     Protocols in the Linux Kernel](https://freecomputerbooks.com/The-Linux-Networking-Architecture.html)
+* software interrupt
+  a software interrupt is scheduled for execution by an activity of the kernel and has to wait until it is called by the scheduler. Software interrupts scheduled for execution are started by the function `do_softirq`. A soft IRQ is activated by `__cpu_raise_softirq`. This occurs currently only when a system call in `schedule()` or a hardware interrupt in `do_IRQ()` terminates.
+
+  A software interrupt can run concurrently in several processors, implemented reentrantly.
+  A software interrupt cannot interrupt itself while running on a processor.
+  A software interrupt can be interrupted during its handling on a processor only by a hardware interrupt.
+
+* Tasklets
+  The function `tasklet_schedule(&tasklet_struct)` can be used to schedule a tasklet for execution. A tasklet is run only once, even if it was scheduled for execution several times. `tasklet_disable()` can be used to stop a tasklet from running, even when it is scheduled for execution
+  A tasklet can run on one processor only at any given time.
+  Different tasklets can run on several processors concurrently.
+
+* Bottom Halfs
+  Only one bottom half can run concurrently on all processors of a system at one time.
 
 ### Network header checksum
 #### Computation of the Internet Checksum via Incremental Update
