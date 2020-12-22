@@ -1,6 +1,8 @@
 ## Net filter
 
 ### Key data structures
+The book _Linux Netfilter Hacking How-to_ has more detailed explanations about the structs
+
 * `netfilter/x_tables.h`
 
 ```

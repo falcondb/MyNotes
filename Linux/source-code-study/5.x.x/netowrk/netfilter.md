@@ -38,6 +38,10 @@ struct nf_hook_entries {
 ```
 
 ```
+typedef unsigned int nf_hookfn(void *priv, struct sk_buff *, struct nf_hook_state *)
+```
+
+```
 struct nf_sockopt_ops {
 	struct list_head list;
 	u_int8_t pf;
@@ -546,7 +550,7 @@ ipv4_conntrack_in   ==>   nf_conntrack_in   #net/netfiler/nf_conntrack_core.c
       // check if the addresses of the two directions match
       // update skb's ip_conntrack_info
 
-  resolve_normal_ct
+  resolve_normal_ct   // create a new tuple
     nf_ct_get_tuple
     __nf_conntrack_find_get
     init_conntrack  if not found
@@ -578,6 +582,28 @@ ipv4_confirm
     nf_conntrack_confirm
 ```
 
+### Conntrack defragment
+#### data structures
+* `net/ipv4/netfilter/nf_defrag_ipv4.c`
+```
+static const struct nf_hook_ops ipv4_defrag_ops[] = {
+	{
+		.hook		= ipv4_conntrack_defrag,
+		.pf		= NFPROTO_IPV4,
+		.hooknum	= NF_INET_PRE_ROUTING,
+		.priority	= NF_IP_PRI_CONNTRACK_DEFRAG,
+	},
+	{
+		.hook           = ipv4_conntrack_defrag,
+		.pf             = NFPROTO_IPV4,
+		.hooknum        = NF_INET_LOCAL_OUT,
+		.priority       = NF_IP_PRI_CONNTRACK_DEFRAG,
+	},
+};
+```
+#### Execution
+
+
 
 ### Netfilter NAT
 
@@ -594,18 +620,6 @@ struct nf_nat_l3proto {
 };
 ```
 
-
-* `net/netfileter/nf_nat_l4proto.h`
-```
-struct nf_nat_l3proto {
-	u8	l3proto;
-	bool	(*manip_pkt)    (...);
-	void	(*csum_update)  (...);
-	void	(*csum_recalc)  (...);
-	void	(*decode_session)   (...);
-	int	  (*nlattr_to_range)  (...);
-};
-```
 
 * `net/netfilter/nf_nat_core.c`
 ```
@@ -671,16 +685,19 @@ __init nf_nat_init
 
 ```
 nfnetlink_parse_nat_setup
-  __nf_nat_alloc_null_binding  ==>  nf_nat_setup_info
-  get_unique_tuple    
-  nf_ct_invert_tuple(&reply, &new_tuple)
-  nf_conntrack_alter_reply(ct, &reply)
+  __nf_nat_alloc_null_binding  
+    nf_nat_setup_info
+      // update the
+      get_unique_tuple
+      nf_ct_invert_tuple(&reply, &new_tuple)
+      nf_conntrack_alter_reply(ct, &reply)
 
-  if NF_NAT_MANIP_SRC
-    hash_by_src(..., &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
-    hlist_add_head_rcu(&ct->nat_bysource, &nf_nat_bysource[srchash])
+      if NF_NAT_MANIP_SRC
+        hash_by_src(..., &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
+        hlist_add_head_rcu(&ct->nat_bysource, &nf_nat_bysource[srchash])
 
 ```
+Update the `ct->tuplehash[IP_CT_DIR_REPLY]` in `struct nf_conn` if necessry; Add to `struct nf_conn->nat_bysource` for _SNAT_
 
 * `nf_nat_manip_pkt`
 ```
@@ -706,3 +723,64 @@ nf_nat_ipv6_manip_pkt
   l4proto_manip_pkt
   swap src and dst IPs
 ```
+
+
+* `nf_nat_ipv4_in`
+Before packet filtering, change destination, NF_INET_PRE_ROUTING
+```
+nf_nat_ipv4_in      // if daddr is changed, skb_dst_drop
+  nf_nat_ipv4_fn    // see nf_nat_ipv4_fn section
+```
+
+* `nf_nat_ipv4_out`
+After packet filtering, change source, NF_INET_POST_ROUTING
+```
+nf_nat_ipv4_out
+  nf_nat_ipv4_fn  // see nf_nat_ipv4_fn section
+  XFRM stff
+```    
+
+
+* `nf_nat_ipv4_local_fn`
+Before packet filtering, change destination, NF_INET_LOCAL_OUT
+```
+nf_nat_ipv4_local_fn
+  nf_nat_ipv4_fn  // See nf_nat_ipv4_fn section
+    // Accept? return
+  if tuplehash[dir].tuple.dst.u3.ip != tuplehash[!dir].tuple.src.u3.ip  
+      ip_route_me_harder
+        ip_route_output_key  ==>  ip_route_output_flow
+          __ip_route_output_key
+
+          if flp4->flowi4_proto     xfrm_lookup_route
+        skb_dst_drop
+        skb_dst_set(skb, &rt->dst)  ==>  skb->_skb_refdst = rt->dst
+
+```
+
+* `nf_nat_ipv4_fn`
+After packet filtering, change source, NF_INET_LOCAL_IN
+```
+nf_nat_ipv4_fn
+  if ICMP   nf_nat_icmp_reply_translation
+  nf_nat_inet_fn
+```
+
+
+#### NAT Common
+
+* `nf_nat_inet_fn` in  `nf_nat_core.c`
+Enter NAT. Priorities at these hooking points: _Conntrack_ > _NAT_ > _Packet Filtering_. _Conntrack_ has a higher priority than NAT, since NAT relies on the results of connection tracking.
+```
+nf_nat_inet_fn
+  nfct_nat  ==>   nf_ct_ext_find  // get the extension at offset NF_CT_EXT_NAT
+  if !nf_nat_initialized
+    for each hook in lpriv->entries
+    lpriv->entries->->hooks[i].hook(e->hooks[i].priv, skb, state)
+    nf_nat_alloc_null_binding     // see nf_nat_alloc_null_binding here
+  else    // handle NF_NAT_MASQUERADE cases
+
+  nf_nat_packet
+    nf_nat_manip_pkt    // nf_nat_manip_pkt section
+```
+If compare `nf_nat_ipv4_in` with `nf_nat_manip_pkt`, `nf_nat_ipv4_in` calss all the nat hooks registered to finalize the src and dst IPs. After the IPs are finalized, allocate the `nf_conntrack_tuple` in (`nf_nat_alloc_null_binding` ==> `nf_nat_setup_info`), revert the direction in `nf_conn`, and update the IPs in `skb`
