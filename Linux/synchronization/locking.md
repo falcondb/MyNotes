@@ -170,6 +170,15 @@ Pete Zaitcev gives the following summary:
 
 `spin_trylock()` does not spin but returns non-zero if it acquires the spinlock on the first try or 0 if not
 
+[The Linux Networking Architecture: Design and Implementation of Network Protocols in the Linux Kernel](https://freecomputerbooks.com/The-Linux-Networking-Architecture.html)
+`spin_lock` tries to set the spinlock my_spinlock . If it is not free, then we have to wait or test until it is released. The free spinlock is then set immediately.
+
+`spin_lock_irqsave` additionally _prevents interrupts_ and _stores the current value of the CPU status register_ in the variable flags.
+
+`spin_lock_irq` _does not store the value of the CPU status register_. It assumes that interrupts are already being prevented.
+
+`spin_lock_bh` tries to set the lock, but it _prevents bottom halfs_ from running at the same time.
+
 #### kernel/locking/rwsem.c
 
 ```

@@ -80,7 +80,7 @@ tcpdump -i nlmon0 -w nlmsg.pcap
 * VTI: Virtual Tunnel Interface
     * This particular tunneling driver implements IP encapsulations, which can be used with xfrm to give the notion of a secure tunnel and then use kernel routing on top.
 
-[The Linux Networking Architecture: Design and Implementation of Network     Protocols in the Linux Kernel](https://freecomputerbooks.com/The-Linux-Networking-Architecture.html)
+[The Linux Networking Architecture: Design and Implementation of Network Protocols in the Linux Kernel](https://freecomputerbooks.com/The-Linux-Networking-Architecture.html)
 * software interrupt
   a software interrupt is scheduled for execution by an activity of the kernel and has to wait until it is called by the scheduler. Software interrupts scheduled for execution are started by the function `do_softirq`. A soft IRQ is activated by `__cpu_raise_softirq`. This occurs currently only when a system call in `schedule()` or a hardware interrupt in `do_IRQ()` terminates.
 
@@ -95,6 +95,16 @@ tcpdump -i nlmon0 -w nlmsg.pcap
 
 * Bottom Halfs
   Only one bottom half can run concurrently on all processors of a system at one time.
+
+* Bit operations
+  Atomic bit operations form the basis for the locking concepts spinlocks and semaphores. `atomic_t` for integer. All of the atomic operations are implemented by _one single machine command_.
+
+* Spinlocks
+  See locking.md
+
+* Read-write Spinlocks
+  RW spinlock functions come in different variants with regard to how they handle _interrupts and bottom halves_
+
 
 ### Network header checksum
 #### Computation of the Internet Checksum via Incremental Update
