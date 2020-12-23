@@ -141,3 +141,87 @@ struct array_cache {
 	void *entry[];
 };
 ```
+
+#### gfp.h
+```
+/**
+ * DOC: Useful GFP flag combinations
+ *
+ * Useful GFP flag combinations
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * Useful GFP flag combinations that are commonly used. It is recommended
+ * that subsystems start with one of these combinations and then set/clear
+ * %__GFP_FOO flags as necessary.
+ *
+ * %GFP_ATOMIC users can not sleep and need the allocation to succeed. A lower
+ * watermark is applied to allow access to "atomic reserves"
+ *
+ * %GFP_KERNEL is typical for kernel-internal allocations. The caller requires
+ * %ZONE_NORMAL or a lower zone for direct access but can direct reclaim.
+ *
+ * %GFP_KERNEL_ACCOUNT is the same as GFP_KERNEL, except the allocation is
+ * accounted to kmemcg.
+ *
+ * %GFP_NOWAIT is for kernel allocations that should not stall for direct
+ * reclaim, start physical IO or use any filesystem callback.
+ *
+ * %GFP_NOIO will use direct reclaim to discard clean pages or slab pages
+ * that do not require the starting of any physical IO.
+ * Please try to avoid using this flag directly and instead use
+ * memalloc_noio_{save,restore} to mark the whole scope which cannot
+ * perform any IO with a short explanation why. All allocation requests
+ * will inherit GFP_NOIO implicitly.
+ *
+ * %GFP_NOFS will use direct reclaim but will not use any filesystem interfaces.
+ * Please try to avoid using this flag directly and instead use
+ * memalloc_nofs_{save,restore} to mark the whole scope which cannot/shouldn't
+ * recurse into the FS layer with a short explanation why. All allocation
+ * requests will inherit GFP_NOFS implicitly.
+ *
+ * %GFP_USER is for userspace allocations that also need to be directly
+ * accessibly by the kernel or hardware. It is typically used by hardware
+ * for buffers that are mapped to userspace (e.g. graphics) that hardware
+ * still must DMA to. cpuset limits are enforced for these allocations.
+ *
+ * %GFP_DMA exists for historical reasons and should be avoided where possible.
+ * The flags indicates that the caller requires that the lowest zone be
+ * used (%ZONE_DMA or 16M on x86-64). Ideally, this would be removed but
+ * it would require careful auditing as some users really require it and
+ * others use the flag to avoid lowmem reserves in %ZONE_DMA and treat the
+ * lowest zone as a type of emergency reserve.
+ *
+ * %GFP_DMA32 is similar to %GFP_DMA except that the caller requires a 32-bit
+ * address.
+ *
+ * %GFP_HIGHUSER is for userspace allocations that may be mapped to userspace,
+ * do not need to be directly accessible by the kernel but that cannot
+ * move once in use. An example may be a hardware allocation that maps
+ * data directly into userspace but has no addressing limitations.
+ *
+ * %GFP_HIGHUSER_MOVABLE is for userspace allocations that the kernel does not
+ * need direct access to but can use kmap() when access is required. They
+ * are expected to be movable via page reclaim or page migration. Typically,
+ * pages on the LRU would also be allocated with %GFP_HIGHUSER_MOVABLE.
+ *
+ * %GFP_TRANSHUGE and %GFP_TRANSHUGE_LIGHT are used for THP allocations. They
+ * are compound allocations that will generally fail quickly if memory is not
+ * available and will not wake kswapd/kcompactd on failure. The _LIGHT
+ * version does not attempt reclaim/compaction at all and is by default used
+ * in page fault path, while the non-light is used by khugepaged.
+ */
+#define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
+#define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+#define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
+#define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM)
+#define GFP_NOIO	(__GFP_RECLAIM)
+#define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
+#define GFP_USER	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+#define GFP_DMA		__GFP_DMA
+#define GFP_DMA32	__GFP_DMA32
+#define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+#define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
+#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
+#define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
+```

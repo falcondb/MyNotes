@@ -81,30 +81,41 @@ tcpdump -i nlmon0 -w nlmsg.pcap
     * This particular tunneling driver implements IP encapsulations, which can be used with xfrm to give the notion of a secure tunnel and then use kernel routing on top.
 
 [The Linux Networking Architecture: Design and Implementation of Network Protocols in the Linux Kernel](https://freecomputerbooks.com/The-Linux-Networking-Architecture.html)
-* software interrupt
-  a software interrupt is scheduled for execution by an activity of the kernel and has to wait until it is called by the scheduler. Software interrupts scheduled for execution are started by the function `do_softirq`. A soft IRQ is activated by `__cpu_raise_softirq`. This occurs currently only when a system call in `schedule()` or a hardware interrupt in `do_IRQ()` terminates.
+* Synchronization
+  * software interrupt
+    a software interrupt is scheduled for execution by an activity of the kernel and has to wait until it is called by the scheduler. Software interrupts scheduled for execution are started by the function `do_softirq`. A soft IRQ is activated by `__cpu_raise_softirq`. This occurs currently only when a system call in `schedule()` or a hardware interrupt in `do_IRQ()` terminates.
 
-  A software interrupt can run concurrently in several processors, implemented reentrantly.
-  A software interrupt cannot interrupt itself while running on a processor.
-  A software interrupt can be interrupted during its handling on a processor only by a hardware interrupt.
+    A software interrupt can run concurrently in several processors, implemented reentrantly.
+    A software interrupt cannot interrupt itself while running on a processor.
+    A software interrupt can be interrupted during its handling on a processor only by a hardware interrupt.
 
-* Tasklets
-  The function `tasklet_schedule(&tasklet_struct)` can be used to schedule a tasklet for execution. A tasklet is run only once, even if it was scheduled for execution several times. `tasklet_disable()` can be used to stop a tasklet from running, even when it is scheduled for execution
-  A tasklet can run on one processor only at any given time.
-  Different tasklets can run on several processors concurrently.
+  * Tasklets
+    The function `tasklet_schedule(&tasklet_struct)` can be used to schedule a tasklet for execution. A tasklet is run only once, even if it was scheduled for execution several times. `tasklet_disable()` can be used to stop a tasklet from running, even when it is scheduled for execution
+    A tasklet can run on one processor only at any given time.
+    Different tasklets can run on several processors concurrently.
 
-* Bottom Halfs
-  Only one bottom half can run concurrently on all processors of a system at one time.
+  * Bottom Halfs
+    Only one bottom half can run concurrently on all processors of a system at one time.
 
-* Bit operations
-  Atomic bit operations form the basis for the locking concepts spinlocks and semaphores. `atomic_t` for integer. All of the atomic operations are implemented by _one single machine command_.
+  * Bit operations
+    Atomic bit operations form the basis for the locking concepts spinlocks and semaphores. `atomic_t` for integer. All of the atomic operations are implemented by _one single machine command_.
 
-* Spinlocks
-  See locking.md
+  * Spinlocks
+    See locking.md
 
-* Read-write Spinlocks
-  RW spinlock functions come in different variants with regard to how they handle _interrupts and bottom halves_
+  * Read-write Spinlocks
+    RW spinlock functions come in different variants with regard to how they handle _interrupts and bottom halves_
 
+* Kernel module
+  * `init_module` & `cleanup_module`
+  * `insmod`
+    * `sys_create_module` allocates memory space to accommodate the module in the kernel address space
+    * `sys_get_kernel_syms` returns the kernel's symbol table to resolve the missing references within the module to kernel symbols
+    * `sys_init_module` copies the module's object code into the kernel address space and calls the module's initialization function
+  * Loading Modules Automatically  
+    Normally, the kernel generates an error message when a resource or a specific driver is not registered. You can ask for this component in advance by use of the kernel function `request_module()`. To use this function, you have to first activate the option Kernel Module Loader when configuring the kernel. `request_module()` will then try to use the `modprobe` command to automatically reload the desired module . You can select such options in the file `/etc/modules.conf`.
+* Timing
+  In the Pentium processor, a 64-bit-wide _TSC_ (Time Stamp Counter) register. Nevertheless, there is a certain inaccuracy when measuring with the _TSC_ register, because it takes a few clocks (approx. ten) to read the register.
 
 ### Network header checksum
 #### Computation of the Internet Checksum via Incremental Update

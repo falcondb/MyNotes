@@ -38,3 +38,7 @@ struct proc_dir_entry {
 }
 
 ```
+
+
+### Key functions
+* `fs/proc/generic.c`

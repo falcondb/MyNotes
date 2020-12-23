@@ -132,7 +132,7 @@ kmalloc_node
 ```
 
 #### Slab
-
+*`kmem_cache_alloc`
 ```
 kmem_cache_alloc
 __kmalloc ==> __do_kmalloc
@@ -154,5 +154,19 @@ __kmalloc ==> __do_kmalloc
 
 slab_alloc_node
 ```
+* `kmem_cache_create`
+```
+kmem_cache_create
+```
+
+* `kmem_cache_destroy`
+
+* `kmem_cache_shrink`
+
+* `kmem_cache_alloc`
+
+* `kmem_cache_free`
+
+
 
 #### Slub
