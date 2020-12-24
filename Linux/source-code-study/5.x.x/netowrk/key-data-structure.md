@@ -100,7 +100,7 @@ struct net_device {
 	struct dev_ifalias	__rcu *ifalias;
 	unsigned long		mem_end;
 	unsigned long		mem_start;
-	unsigned long		base_addr;
+	unsigned long		base_addr;			// I/O basic address
 	int			irq;
 	unsigned long		state;
 	struct list_head	dev_list napi_list unreg_list close_list ptype_all ptype_specific;
@@ -130,23 +130,23 @@ struct net_device {
 	unsigned char		if_port;
 	unsigned char		dma;
 	unsigned int		mtu min_mtu max_mtu;
-	unsigned short		type;
-	unsigned short		hard_header_len;
+	unsigned short	type;
+	unsigned short	hard_header_len;
 	unsigned char		min_header_len;
-	unsigned short		needed_headroom needed_tailroom;
+	unsigned short	needed_headroom needed_tailroom;
 
 	unsigned char		perm_addr[MAX_ADDR_LEN];
 	unsigned char		addr_assign_type;
 	unsigned char		addr_len;
 	unsigned char		upper_level lower_level;
-	unsigned short		neigh_priv_len;
-	unsigned short          dev_id;
-	unsigned short          dev_port;
-	spinlock_t		addr_list_lock;
+	unsigned short	eigh_priv_len;
+	unsigned short  dev_id;
+	unsigned short  dev_port;
+	spinlock_t			addr_list_lock;
 	unsigned char		name_assign_type;
-	bool			uc_promisc;
+	bool						uc_promisc;
 	struct netdev_hw_addr_list	uc mc dev_addrs;
-	struct kset		*queues_kset;
+	struct kset			*queues_kset;
 
 	unsigned int		promiscuity allmulti;
 

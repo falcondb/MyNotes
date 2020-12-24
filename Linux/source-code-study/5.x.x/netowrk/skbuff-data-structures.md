@@ -2,6 +2,7 @@
 
 ### skbuff.h
 
+#### `sk_buff`
 ```
 /**
  *	struct sk_buff - socket buffer
@@ -245,3 +246,17 @@ This function returns the amount of space available for putting data in the buff
 
 * `void skb_reserve(struct sk_buff *skb, int len);`
 This function increments both data and tail.
+
+#### `sk_buff_head`
+Packat management in a queue structure.
+`next` and `prev` are used to concatenate socket buffers; `next` points to the first and `prev` to the last packet in the queue.
+`lock` is a spinlock used for atomic execution of operations on the queue.
+````
+struct sk_buff_head {
+	/* These two members must be first. */
+	struct sk_buff	*next;
+	struct sk_buff	*prev;
+
+	__u32		qlen;
+	spinlock_t	lock;
+};`
