@@ -15,7 +15,7 @@ Sockets may be created with the local address _INADDR_ANY_ to affect “wildcard
 The _Internet protocol family_ is comprised of the IP network protocol, _Internet Control Message Protocol (ICMP)_, _Internet Group Management Protocol (IGMP)_, _Transmission Control Protocol (TCP)_, and _User Datagram Protocol (UDP)_. TCP is used to support the _SOCK_STREAM_ abstraction while UDP is used to support the _SOCK_DGRAM_ abstraction. A raw interface to IP is available by creating an Internet socket of type _SOCK_RAW_. The ICMP message protocol is accessible from a raw socket.
 
 
-### net/inet_connection_sock.h
+### `net/inet_connection_sock.h`
 ```
 struct inet_connection_sock_af_ops {
 	int	    (*queue_xmit)();
@@ -108,7 +108,7 @@ struct inet_connection_sock {
 };
 ```
 
-### ipv4/af_inet.c
+### `ipv4/af_inet.c`
 ```
 static const struct net_proto_family inet_family_ops = {
 	.family = PF_INET,  //#define PF_INET		AF_INET   2
@@ -143,4 +143,62 @@ __init inet_init
 
   ip_tunnel_core_init
 
+```
+
+### INET device management
+#### `inetdevice.h`
+```
+struct in_device {
+	struct net_device	*dev;
+	refcount_t		refcnt;
+	int			dead;
+	struct in_ifaddr	__rcu *ifa_list;/* IP ifaddr chain		*/
+	struct ip_mc_list __rcu	*mc_list;	/* IP multicast filter chain    */
+	struct ip_mc_list __rcu	* __rcu *mc_hash;
+	int			mc_count;	/* Number of installed mcasts	*/
+	spinlock_t		mc_tomb_lock;
+	struct ip_mc_list	*mc_tomb;
+	unsigned long		mr_v1_seen;
+	unsigned long		mr_v2_seen;
+	unsigned long		mr_maxdelay;
+	unsigned long		mr_qi;		/* Query Interval */
+	unsigned long		mr_qri;		/* Query Response Interval */
+	unsigned char		mr_qrv;		/* Query Robustness Variable */
+	unsigned char		mr_gq_running;
+	unsigned char		mr_ifc_count;
+	struct timer_list	mr_gq_timer;	/* general query timer */
+	struct timer_list	mr_ifc_timer;	/* interface change timer */
+	struct neigh_parms	*arp_parms;
+	struct ipv4_devconf	cnf;
+	struct rcu_head		rcu_head;
+};
+```
+An in_device structure is created for each network device that was configured for the Internet Protocol
+```
+struct in_ifaddr {
+	struct hlist_node	hash;
+	struct in_ifaddr	__rcu *ifa_next;
+	struct in_device	*ifa_dev;
+	struct rcu_head		rcu_head;
+	__be32			ifa_local;
+	__be32			ifa_address;
+	__be32			ifa_mask;
+	__u32			ifa_rt_priority;
+	__be32			ifa_broadcast;
+	unsigned char		ifa_scope;
+	unsigned char		ifa_prefixlen;
+	__u32			ifa_flags;
+	char			ifa_label[IFNAMSIZ];
+	/* In seconds, relative to tstamp. Expiry is at tstamp + HZ * lft. */
+	__u32			ifa_valid_lft;
+	__u32			ifa_preferred_lft;
+	unsigned long		ifa_cstamp; /* created timestamp */
+	unsigned long		ifa_tstamp; /* updated timestamp */
+};
+```
+
+#### `net/ipv4/devinet.c`
+
+```
+__init devinet_init
 ```
