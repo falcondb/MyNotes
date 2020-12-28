@@ -117,6 +117,7 @@ tcpdump -i nlmon0 -w nlmsg.pcap
 * Timing
   In the Pentium processor, a 64-bit-wide _TSC_ (Time Stamp Counter) register. Nevertheless, there is a certain inaccuracy when measuring with the _TSC_ register, because it takes a few clocks (approx. ten) to read the register.
 
+
 ### Network header checksum
 #### Computation of the Internet Checksum via Incremental Update
 [RFC 1624](https://tools.ietf.org/html/rfc1624#page-1)
