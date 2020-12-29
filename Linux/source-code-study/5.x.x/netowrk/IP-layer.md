@@ -153,11 +153,3 @@ icmp_echo
 ```
 icmp_timestamp
 ```
-
-
-#### ARP
-* `neigh_resolve_output`
-
-### Misc
-`/proc/sys/net/ipv4/ip_forward` to enable/disable IP forwarding
-`/proc/net/snmp`  ICMP statistics
