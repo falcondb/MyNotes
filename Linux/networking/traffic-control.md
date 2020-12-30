@@ -40,7 +40,7 @@ A qdisc is a scheduler, called a queuing discipline.
 > A leaf class is a terminal class in a qdisc. It contains a qdisc (default FIFO) and will never contain a child class.
 
 #### filter
-> The filter provides a convenient mechanism for gluing together several of the key elements of traffic control. The simplest and most obvious role of the filter is to classify (see Section 3.3) packets. Linux filters allow the user to classify packets into an output queue with either several different filters or a single filter.
+> The filter provides a convenient mechanism for gluing together several of the key elements of traffic control. The simplest and most obvious role of the filter is to classify packets. Linux filters allow the user to classify packets into an output queue with either several different filters or a single filter.
 
 > A filter _must_ contain a classifier phrase. A filter may contain a policer phrase.
 
