@@ -33,9 +33,6 @@ __init inet_init
 
 * `ip_defrag`
 
-##### `ipmr.c`
-* `ip_mr_input`
-
 
 #### ip_forward
 * `ip_forward`
@@ -152,4 +149,215 @@ icmp_echo
 
 ```
 icmp_timestamp
+```
+
+
+#### IGMP
+##### Key data structures
+* `igmp.h`
+```
+struct ip_mc_list {
+	struct in_device	*interface;
+	__be32			multiaddr;
+	unsigned int		sfmode;
+	struct ip_sf_list	*sources;
+	struct ip_sf_list	*tomb;
+	unsigned long		sfcount[2];
+	union {
+		struct ip_mc_list *next;
+		struct ip_mc_list __rcu *next_rcu;
+	};
+	struct ip_mc_list __rcu *next_hash;
+	struct timer_list	timer;
+	int			users;
+	refcount_t		refcnt;
+	spinlock_t		lock;
+	char			tm_running;
+	char			reporter;
+	char			unsolicit_count;
+	char			loaded;
+	unsigned char		gsquery;	/* check source marks? */
+	unsigned char		crcount;
+	struct rcu_head		rcu;
+};
+```
+
+* `mroute_base.h`
+```
+struct vif_device {
+	struct net_device *dev;
+	unsigned long bytes_in, bytes_out;
+	unsigned long pkt_in, pkt_out;
+	unsigned long rate_limit;
+	unsigned char threshold;   // TTL threshold
+	unsigned short flags;      // a tunnel VIFF_TUNNEL?
+	int link;                  // index of physical device
+
+	/* Currently only used by ipmr */
+	struct netdev_phys_item_id dev_parent_id;
+	__be32 local, remote;
+};
+
+/**
+ * struct mr_table - a multicast routing table
+ * @list: entry within a list of multicast routing tables
+ * @net: net where this table belongs
+ * @ops: protocol specific operations
+ * @id: identifier of the table
+ * @mroute_sk: socket associated with the table
+ * @ipmr_expire_timer: timer for handling unresolved routes
+ * @mfc_unres_queue: list of unresolved MFC entries
+ * @vif_table: array containing all possible vifs
+ * @mfc_hash: Hash table of all resolved routes for easy lookup
+ * @mfc_cache_list: list of resovled routes for possible traversal
+ * @maxvif: Identifier of highest value vif currently in use
+ * @cache_resolve_queue_len: current size of unresolved queue
+ * @mroute_do_assert: Whether to inform userspace on wrong ingress
+ * @mroute_do_pim: Whether to receive IGMP PIMv1
+ * @mroute_reg_vif_num: PIM-device vif index
+ */
+struct mr_table {
+	struct list_head	list;
+	possible_net_t		net;
+	struct mr_table_ops	ops;
+	u32			id;
+	struct sock __rcu	*mroute_sk;
+	struct timer_list	ipmr_expire_timer;
+	struct list_head	mfc_unres_queue;
+	struct vif_device	vif_table[MAXVIFS];
+	struct rhltable		mfc_hash;
+	struct list_head	mfc_cache_list;
+	int			maxvif;
+	atomic_t		cache_resolve_queue_len;
+	bool			mroute_do_assert;
+	bool			mroute_do_pim;
+	bool			mroute_do_wrvifwhole;
+	int			mroute_reg_vif_num;
+};
+```
+
+* `mroute.h`
+```
+/**
+ * struct mr_mfc - common multicast routing entries
+ * @mnode: rhashtable list
+ * @mfc_parent: source interface (iif)
+ * @mfc_flags: entry flags
+ * @expires: unresolved entry expire time
+ * @unresolved: unresolved cached skbs
+ * @last_assert: time of last assert
+ * @minvif: minimum VIF id
+ * @maxvif: maximum VIF id
+ * @bytes: bytes that have passed for this entry
+ * @pkt: packets that have passed for this entry
+ * @wrong_if: number of wrong source interface hits
+ * @lastuse: time of last use of the group (traffic or update)
+ * @ttls: OIF TTL threshold array
+ * @refcount: reference count for this entry
+ * @list: global entry list
+ * @rcu: used for entry destruction
+ * @free: Operation used for freeing an entry under RCU
+ */
+struct mr_mfc {
+	struct rhlist_head mnode;  
+	unsigned short mfc_parent;     // the index of the virtual network device in the vif_table
+	int mfc_flags;
+	union {
+		struct {
+			unsigned long expires;
+			struct sk_buff_head unresolved;
+		} unres;
+		struct {
+			unsigned long last_assert;
+			int minvif;
+			int maxvif;
+			unsigned long bytes;
+			unsigned long pkt;
+			unsigned long wrong_if;
+			unsigned long lastuse;
+			unsigned char ttls[MAXVIFS];
+			refcount_t refcount;
+		} res;
+	} mfc_un;
+	struct list_head list;
+	struct rcu_head	rcu;
+	void (*free)(struct rcu_head *head);
+};
+
+/**
+ * struct mfc_cache - multicast routing entries
+ * @_c: Common multicast routing information; has to be first [for casting]
+ * @mfc_mcastgrp: destination multicast group address
+ * @mfc_origin: source address
+ * @cmparg: used for rhashtable comparisons
+ */
+struct mfc_cache {
+	struct mr_mfc _c;
+	union {
+		struct {
+			__be32 mfc_mcastgrp;
+			__be32 mfc_origin;
+		};
+		struct mfc_cache_cmp_arg cmparg;
+	};
+};
+```
+
+##### Initialization
+```
+__init igmp_mc_init
+```
+
+##### Key functions
+
+###### Control plane
+* `net/ipv4/igmp.c`
+```
+igmp_rcv
+
+igmp_heard_report
+
+igmp_heard_query
+
+igmp_send_report
+```
+
+* `net/ipv4/ipmr.c`     // mrounted support
+```
+__init ip_mr_init
+
+ip_mroute_setsockopt    // mrouted interface
+
+ipmr_ioctl              // ioctl interface
+
+ipmr_get_route
+
+ipmr_cache_find
+
+ipmr_new_tunnel
+```
+
+###### Data plane
+* `ipv4/route.c`
+```
+ip_route_input_mc
+  ip_mc_validate_source
+  flags |= RTCF_LOCAL
+  struct rtable rth = rt_dst_alloc
+  rth->dst.input = ip_mr_input
+```
+
+* `ipv4/ipmr.c`
+
+```
+ip_mr_input
+```
+
+```
+ip_mr_forward
+  dst->output
+```
+
+```
+ipmr_queue_xmit
 ```
