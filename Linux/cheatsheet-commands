@@ -54,6 +54,7 @@ logname 			Reports the current user's login name and current user name (before s
 nl					Add line numbers to the file
 mkfifo mknod mktemp
 readlink realpath
+namei       follow a pathname until a terminal point is found
 nice renice			Nice value
 od 					Dumps files in octal and other formats
 paste				Merges the given files, joining sequentially corresponding lines side by side, separated by tab
