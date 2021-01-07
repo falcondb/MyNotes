@@ -766,6 +766,14 @@ nf_nat_ipv4_fn
   nf_nat_inet_fn
 ```
 
+* `ipt_snat_target` & `ipt_dnat_target()`
+```
+ipt_snat_target
+```
+
+```
+ipt_dnat_target
+```
 
 #### NAT Common
 
