@@ -200,6 +200,44 @@ static struct Qdisc_ops clsact_qdisc_ops __read_mostly = {
 };  
 ```
 
+```
+__qdisc_run
+	while (qdisc_restart(q, &packets))
+		if (quota <= 0)
+			__netif_schedule(q);
+
+```
+
+
+```
+qdisc_restart
+	skb = dequeue_skb
+	dev = qdisc_dev(q)
+	txq = skb_get_tx_queue
+	sch_direct_xmit(skb, q, dev, txq, ...)
+```
+
+
+```
+sch_direct_xmit
+	every good
+		dev_hard_start_xmit
+	!dev_xmit_complete
+		dev_requeue_skb
+```
+
+
+```
+dev_requeue_skb
+	for each skb in skb list
+		__skb_queue_tail(&q->gso_skb, skb)
+
+	__netif_schedule	==>		__netif_reschedule
+		*sd->output_queue_tailp = q
+		sd->output_queue_tailp = &q->next_sched
+		raise_softirq_irqoff(NET_TX_SOFTIRQ)
+```
+
 
 #### egress
 * `net/sched/sched_api.c`

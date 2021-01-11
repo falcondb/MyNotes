@@ -75,7 +75,10 @@ struct list_head ptype_all __read_mostly;
 #### Initialization
 ```
 __init net_dev_init
-  // TOBESTUDIED
+  for each possible CPU
+    struct softnet_data initialization
+    sd->backlog.poll = process_backlog
+
   open_softirq(NET_TX_SOFTIRQ, net_tx_action)
   open_softirq(NET_RX_SOFTIRQ, net_rx_action)  
 
@@ -83,7 +86,7 @@ __init net_dev_init
 
 #### Key functions
 * `netif_receive_skb`
-
+`netif_receive_skb` should be called from device drivers for NAPI.
 ```
 netif_receive_skb
   netif_receive_skb_internal
@@ -107,7 +110,11 @@ __netif_receive_skb_core
     struct packet_type ->func // see dev_add_pack
 
   sch_handle_ingress
+    tcf_classify
+      TC_ACT_OK: skb->tc_index = cl_res.classid
+      TC_ACT_REDIRECT:  skb_do_redirect  ==>  __bpf_redirect  // BPF
   nf_ingress
+    nf_hook_ingress
 
   vlan cases:
   vlan_do_receive
@@ -121,7 +128,7 @@ vlan_do_receive
 ```
 
 * `net_tx_action`
-the handling routine of `NET_RX_SOFTIRQ`
+the handling routine of `NET_TX_SOFTIRQ`
 ```
 net_tx_action
   free skb in sd->completion_queue
@@ -129,6 +136,7 @@ net_tx_action
     qdisc_run
 
 ```
+
 * `net_rx_action`
 ```
 net_rx_action
@@ -156,15 +164,26 @@ napi_poll
 * `dev_add_pack`
 Add a protocol handler to the networking stack.
 It registers with the Linux network architecture the layer-3 protocol represented by the `struct packet_type pt`
+
 ```
 head = ptype_head(pt)
 spin_lock
 list_add_rcu(&pt->list, head)
 ```
+For IPv4, `dev_add_pack(&ip_packet_type)` is added in `inet_init` in `af_inet.c`
+`ip_rcv`, the `struct packet_type.func` is called in the softirq.
+
+```
+static struct packet_type ip_packet_type __read_mostly = {
+	.type = cpu_to_be16(ETH_P_IP),
+	.func = ip_rcv,
+	.list_func = ip_list_rcv,
+};
+```
 
 #### Packat processing path
 * `netif_rx` in net/core/dev.c
-completes the interrupt handling
+Completes the interrupt handling. This function receives a packet from a device driver and queues it for the upper protocols to process.
 ```
 netif_rx  ==>   netif_rx_internal
   #ifdef CONFIG_RPS
@@ -172,36 +191,38 @@ netif_rx  ==>   netif_rx_internal
     enqueue_to_backlog
   #endif
     enqueue_to_backlog
-        __skb_queue_tail(&sd->input_pkt_queue, skb)
+      __skb_queue_tail(&sd->input_pkt_queue, skb) // skbs in input_pkt_queue will be processed as backlog
+```
+
+* `process_backlog`
+```
+process_backlog
+  while skb = __skb_dequeue(&sd->process_queue)
+    __netif_receive_skb(skb);
+
+  skb_queue_splice_tail_init(&sd->input_pkt_queue, &sd->process_queue) // add the current input_pkt_queue to process_queue, which will be processed as backlog
 ```
 
 * `dev_queue_xmit`
 Used by protocol instances of the higher protocols to send a packet in the form of the socket buffer over a network device
 ```
 dev_queue_xmit  ==> __dev_queue_xmit
+  sch_handle_egress
   txq = netdev_core_pick_tx
   q = txq->qdisc
   if q->enqueue
     __dev_xmit_skb
       if sch_direct_xmit
-        __qdisc_run
+        __qdisc_run   // sec traffic-control.md
       else
         q->enqueue(skb,...)
+    job done!
+
+    /* The device has no queue. Common case for software devices:
+  	 * loopback, all the sorts of tunnels...   
+    dev_hard_start_xmit    
 ```
 
-
-* `__qdisc_run` in `net/sched/sch_generic.c`
-```
-__qdisc_run
-  while qdisc_restart
-    __netif_schedule  ==> __netif_reschedule
-    softnet_data = this_cpu_ptr(&softnet_data);
-    q->next_sched = NULL;
-    *sd->output_queue_tailp = q;
-    sd->output_queue_tailp = &q->next_sched;
-    raise_softirq_irqoff(NET_TX_SOFTIRQ);
-
-```
 
 * `dev_open`
 

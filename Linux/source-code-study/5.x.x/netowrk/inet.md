@@ -139,7 +139,7 @@ __init inet_init
     raw_proc_init tcp4_proc_init udp4_proc_init
      register_pernet_subsys(&tcp4_net_ops)
   ipfrag_init
-  dev_add_pack    // add packet handler
+  dev_add_pack    // add packet handler for IP package, see dev.md
 
   ip_tunnel_core_init
 
