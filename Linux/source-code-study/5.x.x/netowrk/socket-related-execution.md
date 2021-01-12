@@ -53,7 +53,7 @@ __sys_bind
 ```
 
 
-####  send / sendto
+####  egress
 ```
 __sys_sendto
   sockfd_lookup_light
@@ -65,7 +65,7 @@ __sys_sendto
       INDIRECT_CALL_2(sk->sk_prot->sendmsg, tcp_sendmsg, udpv6_sendmsg, ...)
 ```
 
-#### tcp in net/ipv4/tcp
+##### tcp in net/ipv4/tcp
 ```
 tcp_sendmsg_locked
   TODO:
@@ -78,4 +78,14 @@ sock_alloc_file
   file->private_data = sock;
   stream_open(SOCK_INODE(sock), file); //struct socket_alloc { struct socket;	struct inode; }
   };
+```
+
+##### ingress
+```
+sock_queue_rcv_skb
+  sk_filter   // Berkeley Packet Filter
+  __sock_queue_rcv_skb
+    struct sk_buff_head *list = &sk->sk_receive_queue
+    __skb_queue_tail(list, skb)
+    sk->sk_data_ready(sk)
 ```

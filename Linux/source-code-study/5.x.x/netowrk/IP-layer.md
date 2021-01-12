@@ -27,11 +27,61 @@ __init inet_init
 ##### `ip_input.c`
 * `ip_rcv`
 
+`ip_rcv` is registered as the callback in `packet_type` for IP protocol. `dev` calls it when the packet is ready to be processed in IP layer.
+```
+ip_rcv
+	ip_rcv_core
+		/ sanity check of the IP header and the skb
+	NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, ..., ip_rcv_finsih)
+```
+
+
 * `ip_rcv_finsih`
+```
+ip_rcv_finsih
+	ip_rcv_finish_core
+		// see below
+	dst_input
+		skb_dst(skb)->input
+```
+
+Attempts to call the early_demux function from the higher level protocol that this data is destined for. The early_demux routine is an optimization which attempts to find the dst_entry needed to deliver the packet by checking if a dst_entry is cached on the socket structure.
+```
+ip_rcv_finish_core
+	// early_demux optimization
+	if net->ipv4.sysctl_ip_early_demux
+		edemux = ipprot->early_demux
+		edemux(skb)
+
+	// new packet or !early_demux
+	ip_rcv_options
+	rt = skb_rtable(skb)
+```
 
 * `ip_local_deliver`
+Set `ip_local_deliver` to `rttable.dst.input = ip_local_deliver` in `rt_dst_alloc() ipv4/route.c` for local delivery
+```
+ip_local_deliver
+	if ip_is_fragment ==> ip_defrag; return 0
+	NF_HOOK(NFPROTO_IPV4, NF_INET_LOCAL_IN, ip_local_deliver_finish)
+```
 
-* `ip_defrag`
+* `ip_defrag` in `ipv4/ip_fragment.c`
+```
+ip_defrag
+	
+```
+
+* `ip_local_deliver_finish`
+```
+ip_local_deliver_finish
+	ip_protocol_deliver_rcu(net, skb, ip_hdr(skb)->protocol)
+
+	ipprot = rcu_dereference(inet_protos[protocol])
+	ipprot->handler(skb)	// to upper layer
+
+	// some xfrm4_policy_check here for IPSec
+```
 
 
 #### ip_forward

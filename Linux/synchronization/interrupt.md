@@ -1,5 +1,34 @@
 ## interrupt handling
 
+[Monitoring and Tuning the Linux Networking Stack: Receiving Data](https://blog.packagecloud.io/eng/2016/06/22/monitoring-tuning-linux-networking-stack-receiving-data/)
+ksoftirqd system is initialized in `kernel/softirq.c`
+```
+DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
+
+static struct smp_hotplug_thread softirq_threads = {
+	.store			= &ksoftirqd,
+	.thread_should_run	= ksoftirqd_should_run,
+	.thread_fn		= run_ksoftirqd,
+	.thread_comm		= "ksoftirqd/%u",
+};
+
+```
+
+```
+run_ksoftirqd
+  if local_softirq_pending()
+    __do_softirq()
+      struct softirq_action h->action(h)
+    local_irq_enable()
+    cond_resched()
+      // TOBESTUDIED
+```
+
+```
+__init int spawn_ksoftirqd(void)
+	cpuhp_setup_state_nocalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL, takeover_tasklets);
+```
+
 [Linux Device Driver: Chapter 10](https://static.lwn.net/images/pdf/LDD3/ch10.pdf)
 
 * Disable interrupt delievery

@@ -22,8 +22,8 @@ struct softnet_data {
 		u8  more;
 	} xmit;
 	unsigned int		dropped;
-	struct sk_buff_head	input_pkt_queue;
-	struct napi_struct	backlog;
+	struct sk_buff_head	input_pkt_queue;   // Device adds packets here
+	struct napi_struct	backlog;    // for RPS
 };
 ```
 
@@ -95,7 +95,7 @@ netif_receive_skb
         __netif_receive_skb_core
 ```
 More direct receive version of netif_receive_skb().  It should only be used by callers that have a need to skip RPS and Generic XDP.
-Caller must also take care of handling if (page_is_)pfmemalloc.
+Caller must also take care of handling if pfmemalloc.
 This function may only be called from softirq context and interrupts should be enabled.
 ```
 netif_receive_skb_core
@@ -181,6 +181,15 @@ static struct packet_type ip_packet_type __read_mostly = {
 };
 ```
 
+* `netif_napi_add`
+```
+netif_napi_add
+  init_gro_hash(napi)
+  napi->poll = poll
+  list_add(&napi->dev_list, &dev->napi_list)
+  napi_hash_add(napi)
+```
+
 #### Packat processing path
 * `netif_rx` in net/core/dev.c
 Completes the interrupt handling. This function receives a packet from a device driver and queues it for the upper protocols to process.
@@ -201,6 +210,19 @@ process_backlog
     __netif_receive_skb(skb);
 
   skb_queue_splice_tail_init(&sd->input_pkt_queue, &sd->process_queue) // add the current input_pkt_queue to process_queue, which will be processed as backlog
+```
+The code is tricky, read the original code
+```
+enqueue_to_backlog
+  if qlen <= netdev_max_backlog && !skb_flow_limit(skb, qlen)
+    __skb_queue_tail(&sd->input_pkt_queue, skb)
+    DONE
+
+  if !__test_and_set_bit(NAPI_STATE_SCHED, &sd->backlog.state)
+    if !rps_ipi_queued(sd)    // if the packet is on other cpus' queue, raise the softirq
+      ____napi_schedule(sd, &sd->backlog) // NAPI to process current CPU's backlog
+  }
+  goto enqueue;
 ```
 
 * `dev_queue_xmit`
@@ -227,6 +249,55 @@ dev_queue_xmit  ==> __dev_queue_xmit
 * `dev_open`
 
 * `dev_close`
+
+
+#### GRO
+
+A list of GRO offload filters is traversed to allow the higher level protocol stacks to act on a piece of data which is being considered for GRO. This is done so that the protocol layers can let the network device layer know if this packet is part of a network flow that is currently being receive offloaded and handle anything protocol specific that should happen for GRO.
+```
+napi_gro_receive
+  skb_gro_reset_offset // initialization of the skb's cb NAPI_GRO_CB(skb)
+  dev_gro_receive(napi, skb)
+  napi_skb_finish   // memory clean up for different return cases
+```
+
+```
+dev_gro_receive
+  struct list_head *head = &offload_base;
+  list_for_each_entry_rcu(ptype, head, list)
+  pp = INDIRECT_CALL_INET(ptype->callbacks.gro_receive, ipv6_gro_receive, inet_gro_receive, gro_head, skb)
+
+  if napi->gro_hash[hash].count >= MAX_GRO_SKBS
+		gro_flush_oldest(gro_head)
+
+  list_add(&skb->list, gro_head);
+  ret = GRO_HELD;
+
+  gro_pull_from_frag0(skb, grow);
+
+```
+
+```
+napi_gro_complete
+  *head = &offload_base
+  list_for_each_entry_rcu(ptype, head, list)
+  INDIRECT_CALL_INET(ptype->callbacks.gro_complete, ipv6_gro_complete, inet_gro_complete, skb, 0)
+  netif_receive_skb_internal
+```
+
+### RPS
+```
+get_rps_cpu
+```
+
+```
+rps_ipi_queued
+  if sd != mysd
+    sd->rps_ipi_next = mysd->rps_ipi_list
+    mysd->rps_ipi_list = sd
+
+    __raise_softirq_irqoff(NET_RX_SOFTIRQ)
+```
 
 
 #### XDP

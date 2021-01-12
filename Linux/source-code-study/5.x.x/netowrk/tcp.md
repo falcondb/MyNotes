@@ -259,6 +259,25 @@ disabled when:
 
 
 * `tcp_v4_rcv`
+```
+if sk->sk_state == TCP_NEW_SYN_RECV
+  sk = req->rsk_listene
+  // TOBESTUDIED
+if sk->sk_state == TCP_LISTEN
+  tcp_v4_do_rcv
+  return
+
+```
+
+* `tcp_ack`
+```
+tcp_ack
+  tcp_ack_update_window            
+  tcp_in_ack_event
+    inet_connection_sock->icsk_ca_ops(struct tcp_congestion_ops)->in_ack_event(struct tcp_congestion_ops)
+    // seems in_ack_event is not set for IPv4
+  tcp_rack_update_reo_wnd // RFC 3708
+```
 
 
 ### TCP common
