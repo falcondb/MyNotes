@@ -1,21 +1,5 @@
 ## Neighbour management --- ARP (Address Resolution Protocol) and ND (Neighbour Discovery)
 ### Key data structures
-#### net/route.h
-```
-struct rtable {
-	struct dst_entry	dst;
-	int			rt_genid;
-	unsigned int		rt_flags;
-	__u16			rt_type;
-	__u8			rt_is_input;
-	__u8			rt_uses_gateway;
-	int			rt_iif;
-	__be32			rt_gateway;				/* Info on neighbour */
-	u32			rt_mtu_locked:1, rt_pmtu:31;			/* Miscellaneous cached information */
-	struct list_head	rt_uncached;
-	struct uncached_list	*rt_uncached_list;
-};
-```
 
 #### net/neighbour.c
 ```
@@ -172,7 +156,6 @@ neigh_xmit
 ```
 
 
-
 ```
 neigh_timer_handler     // a timer expires for a neighbour entry
 or neigh_add / neigh_add / neigh_delete ==> __neigh_update
@@ -181,6 +164,30 @@ or neigh_add / neigh_add / neigh_delete ==> __neigh_update
 
 ```
 
+##### egress
+
+```
+__ipv4_neigh_lookup_noref
+	struct neigh_hash_table *nht = rcu_dereference_bh(tbl->nht)
+	// hash table search
+```
+
+```
+neigh_output
+	if n->nud_state & NUD_CONNECTED		
+	// NUD_CONNECTED ==  NUD_PERMANENT: A static rout; NUD_NOARP: Does not require an ARP request;
+	// NUD_REACHABLE: reachable whenever an ARP request for it is successfully processed 
+		neigh_hh_output
+
+	struct neighbour->output
+```
+
+```
+neigh_hh_output
+	// get the hh_len Mac header length of the dev (ethernet 802.3, WIFI 802.11)
+	// copy the header to skb
+	dev_queue_xmit	// sec dev.md
+```
 
 ##### Common
 * `neigh_resolve_output`

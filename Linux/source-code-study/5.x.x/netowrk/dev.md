@@ -27,6 +27,16 @@ struct softnet_data {
 };
 ```
 
+* `hh_cache`
+```
+struct hh_cache {
+	unsigned int	hh_len;
+	seqlock_t	hh_lock;
+	/* cached hardware header; allow for machine alignment needs.        */
+	unsigned long	hh_data[HH_DATA_ALIGN(LL_MAX_HEADER) / sizeof(long)];
+};
+```
+
 * `napi_struct`
 Structure for NAPI scheduling similar to tasklet but with weighting.
 New API, it defers incoming message handling until there is a sufficient amount of them so that it is worth handling them all at once

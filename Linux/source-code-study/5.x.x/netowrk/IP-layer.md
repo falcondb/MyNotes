@@ -23,7 +23,7 @@ __init inet_init
 ```
 
 
-#### igress
+#### ingress
 ##### `ip_input.c`
 * `ip_rcv`
 
@@ -55,6 +55,8 @@ ip_rcv_finish_core
 
 	// new packet or !early_demux
 	ip_rcv_options
+	if !skb_valid_dst
+		ip_route_input_noref	// ip_forward
 	rt = skb_rtable(skb)
 ```
 
@@ -69,7 +71,7 @@ ip_local_deliver
 * `ip_defrag` in `ipv4/ip_fragment.c`
 ```
 ip_defrag
-	
+
 ```
 
 * `ip_local_deliver_finish`
@@ -95,6 +97,20 @@ ip_local_deliver_finish
 
 #### egress
 
+* `ip_send_skb` & `ip_local_out`
+```
+ip_send_skb	==> ip_local_out
+
+```
+```
+ip_local_out
+	__ip_local_out
+		l3mdev_ip_out // see l3mdev.h and paper "what What is an L3 Master Device?"
+		nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, dst_output)
+	dst_output
+		(skb->_skb_refdst & SKB_DST_PTRMASK)->output()
+```
+
 * `__ip_queue_xmit` in `ipv4/ip_output.c`
 ```
 ip_queue_xmit  ==>  __ip_queue_xmit
@@ -103,12 +119,38 @@ ip_queue_xmit  ==>  __ip_queue_xmit
 * `p_queue_xmit2`?
 
 * `ip_output`
+```
+NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, ip_finish_output, !(IPCB(skb)->flags & IPSKB_REROUTED))
+```
 
 * `ip_finish_output`
+```
+ip_finish_output
+	if skb_is_gso
+		ip_finish_output_gso
+
+	if skb->len > mtu
+		ip_fragment
+
+	ip_finish_output2
+
+```
+
+```
+ip_finish_output2
+	nexthop = rt_nexthop(rt, ip_hdr(skb)->daddr)
+		rt->rt_gw_family == AF_INET? rt->rt_gw4: daddr
+	neigh = __ipv4_neigh_lookup_noref(dev, nexthop)	\\ see neighbour.md
+	sock_confirm_neigh(skb, neigh)
+	neigh_output(neigh, skb)		\\ see neighbour.md
+		neigh_hh_output or struct neighbour->output
+```
 
 * `ip_fragment`
 
 * `dev_queue_xmit`
+
+
 
 
 #### IP options

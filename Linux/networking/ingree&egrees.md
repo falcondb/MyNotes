@@ -27,7 +27,12 @@ Receive flow steering (RFS) is used in conjunction with RPS. RPS attempts to dis
 
 
 _IP Layer_
-if you have numerous or very complex netfilter or iptables rules, those rules will be executed in the softirq context and can lead to latency in your network stack. 
+if you have numerous or very complex netfilter or iptables rules, those rules will be executed in the softirq context and can lead to latency in your network stack.
+
+
 
 ### egress
 [Monitoring and Tuning the Linux Networking Stack: Sending Data](https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/)
+
+_IP Layer_
+If you have numerous or very complex netfilter or iptables rules, those rules will be executed in the CPU context of the user process which initiated the original sendmsg call. If you have CPU pinning set up to restrict execution of this process to a particular CPU (or set of CPUs), be aware that the CPU will spend system time processing outbound iptables rules.
