@@ -165,8 +165,82 @@ ip_route_input
 
 * `ip_route_output_flow`
 
-* `fib_lookup`
+* `ip_route_output_flow`
+```
+ip_route_output_flow
+	struct rtable *rt = __ip_route_output_key  ==>   ip_route_output_key_hash
+	if struct flowi4->flowi4_proto
+		rt = xfrm_lookup_route()
+```
+
+```
+ip_route_output_key_hash
+	ip_route_output_key_hash_rcu
+		if fl4->flowi4_oif
+			fl4->saddr to RT_SCOPE_HOST dev's addr
+
+	  if !fl4->daddr
+			set saddr & daddr to loopback, dev_out to net->loopback_dev
+
+		fib_lookup(net, fl4, res, 0)
+		fib_select_path
+			fib_result_prefsrc
+				struct fib_result->fi->fib_prefsrc
+		__mkroute_output
+
+```
+
+* `__mkroute_output`
+```
+__mkroute_output
+	find_exception
+
+	rth = rt_dst_alloc(dev_out, ...)
+		rt->dst.output = ip_output	// See IP_layer.md, egress section
+		if  RTCF_LOCAL
+		rt->dst.input = ip_local_deliver // See IP_layer.md, ingress section
+	if broadcast or mroute
+		rth->dst.output = ip_mc_output
+
+	rt_set_nexthop
+		if nh->nh_scope == RT_SCOPE_LINK
+			rt->rt_gateway = nh->nh_gw
+		if do_cache
+			cached = rt_cache_route
+		else
+			rt_add_uncached_list
+```
+
+* `__mkroute_input`
+` ip_rcv_finish ==> ip_rcv_finish_core (/ip_route_input) ==> ip_route_input_noref ==> ip_route_input_rcu ==> ip_route_input_slow ==> ip_mkroute_input ==> __mkroute_input`
+```
+__mkroute_input
+ find_exception
+ rt_dst_alloc
+ rth->dst.input = ip_forward
+ rt_set_nexthop
+ skb_dst_set(skb, &rth->dst)
+```
+
+* `	find_exception `
+cached cases TOBESTUDIED
+
+* `fib_lookup` in `ip_fib.h`
 FIB query
+```
+fib_lookup
+	tb = fib_get_table(net, RT_TABLE_MAIN)
+	fib_table_lookup(tb, struct flowi4 flp,...)
+
+```
+
+* `fib_table_lookup` in `ipv4/fib_trie.c`
+```
+fib_table_lookup
+	/* Step 1: Travel to the longest prefix match in the trie */
+	/* Step 2: Sort out leaves and begin backtracing for longest prefix */
+	/* Step 3: Process the leaf, if that fails fall back to backtracing */
+```
 
 * `fib_rules_event`
 

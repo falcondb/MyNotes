@@ -106,7 +106,7 @@ The rest need further studies, I can't follow at this time.
 [An introduction to compound pages](https://lwn.net/Articles/619514/)
 >A compound page is simply a grouping of two or more physically contiguous pages into a unit that can, in many ways, be treated as a single, larger page. They are most commonly used to create huge pages, used within hugetlbfs or the transparent huge pages subsystem
 
->Allocating a compound page is a matter of calling a normal memory allocation function like alloc_pages() with the __GFP_COMP allocation flag set and an order of at least one
+>Allocating a compound page is a matter of calling a normal memory allocation function like alloc_pages() with the __GFP_COMP__ allocation flag set and an order of at least one
 
 >The first (normal) page in a compound page is called the "head page"; it has the PG_head flag set. All other pages are "tail pages"; they are marked with PG_tail. all pages in a compound page have the PG_compound flag set, and the tail pages have PG_reclaim set as well.
 
@@ -262,3 +262,5 @@ Userfaultfd [Userfaultfd Man page](https://man7.org/linux/man-pages/man2/userfau
 * Read the details here about how QEMU uses Userfaultfd
 
 [Documentation for /proc/sys/vm/](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/vm.html)
+
+[DMA-API-HOWTO.txt](linux/Documentation/DMA-API-HOWTO.txt)

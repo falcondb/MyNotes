@@ -200,10 +200,25 @@ static struct Qdisc_ops clsact_qdisc_ops __read_mostly = {
 };  
 ```
 
+`sch_direct_xmit` is checked for two cases:
+The queue is not empty (>0 returned). In this case, lock preventing contention from other programs is released and `__qdisc_run` is called to restart the qdisc processing.
+The queue was empty (0 is returned). In this case qdisc_run_end is used to turn off qdisc processing.
+
+```
+sch_direct_xmit
+  if !netif_xmit_frozen_or_stopped
+    dev_hard_start_xmit
+
+  dev_xmit_complete  
+```
+
+
 ```
 __qdisc_run
-	while (qdisc_restart(q, &packets))
-		if (quota <= 0)
+	while qdisc_restart
+		if quota <= 0 || need_resched
+			// up to now the kernel is still executing on behalf of the original call to sendmsg by the user program; the user program is currently accumulating system time.
+			// If the user program has exhausted its time quota in the kernel, need_resched will return true.
 			__netif_schedule(q);
 
 ```
@@ -212,14 +227,44 @@ __qdisc_run
 ```
 qdisc_restart
 	skb = dequeue_skb
+	if !skb
+		return 0		// exit from qdis_restart and run qdisc_run_end in __qdisc_run
 	dev = qdisc_dev(q)
 	txq = skb_get_tx_queue
 	sch_direct_xmit(skb, q, dev, txq, ...)
 ```
 
+```
+dequeue_skb
+	// GSO queue is not empty
+	if !skb_queue_empty(&q->gso_skb)		
+	 skb = skb_peek(&q->gso_skb) // GSO: a reference to data that was requeued
+	 xfrm_offload
+	 skb_get_tx_queue
+	 if !netif_xmit_frozen_or_stopped
+	 		// if the queue is stopped, return null skb
+			qdisc_qstats_backlog_dec
+			q->q.qlen--
+
+	// GSO queue is empty
+	// handle skb in skb_bad_txq
+
+	skb = q->dequeue
+
+	if TCQ_F_ONETXQUEUE
+		try_bulk_dequeue_skb
+			// get a list of skbs with the quota qdisc_avail_bulklimit
+	else
+		try_bulk_dequeue_skb_slow
+			if skb_get_queue_mapping(nskb) != mapping
+				qdisc_enqueue_skb_bad_txq
+
+```
+
 
 ```
 sch_direct_xmit
+	// CONFIG_XFRM_OFFLOAD
 	every good
 		dev_hard_start_xmit
 	!dev_xmit_complete
@@ -230,12 +275,9 @@ sch_direct_xmit
 ```
 dev_requeue_skb
 	for each skb in skb list
-		__skb_queue_tail(&q->gso_skb, skb)
+		__skb_queue_tail(&q->gso_skb, skb)	// add it to GSO queue
 
-	__netif_schedule	==>		__netif_reschedule
-		*sd->output_queue_tailp = q
-		sd->output_queue_tailp = &q->next_sched
-		raise_softirq_irqoff(NET_TX_SOFTIRQ)
+	__netif_schedule		// see dev.md
 ```
 
 
@@ -275,6 +317,12 @@ qdisc_run
         __netif_schedule
   qdisc_run_end
 
+```
+
+```
+qdisc_run_end
+	write_seqcount_end(&qdisc->running)
+	spin_unlock(&qdisc->seqlock)
 ```
 
 responsible for getting the next packet from the queue of the network device and sending it

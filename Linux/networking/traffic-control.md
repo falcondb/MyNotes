@@ -117,3 +117,6 @@ the special field `tc_classid` of the `struct __skb_buff` can be used, instead o
 _clsact_ is similar to the ingress qdisc, to which we can attach eBPF programs with the direct-action mode, and which does not perform any queuing. But _clsact_ acts as a superset of ingress
 
 [Linux Advanced Routing & Traffic Control HOWTO](https://www.lartc.org/lartc.html#LARTC.QDISC.TERMINOLOGY)
+
+[Monitoring and Tuning the Linux Networking Stack: Sending Data](https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/)
+For network hardware that supports only a single transmit queue, the default qdisc _pfifo_fast_ is used. Network hardware that supports multiple transmit queues uses the default qdisc of _mq_. You can check your system by running `tc qdisc`.
