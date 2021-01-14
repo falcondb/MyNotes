@@ -156,9 +156,14 @@ __init ip_rt_init
 #### key operations
 
 * `ip_route_input`
-`ip_rcv_finish()` invokes `ip_route_input()` to find a `dst_entry`
+`ip_rcv_finish()` invokes `ip_route_input()` to find a `dst_entry`. See IP-layer.md
 
-* `ip_route_input`
+```
+ip_route_input
+	ip_route_input_noref
+```
+
+* `ip_route_output_flow`
 
 * `fib_lookup`
 FIB query
