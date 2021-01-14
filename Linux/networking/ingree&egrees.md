@@ -36,3 +36,6 @@ if you have numerous or very complex netfilter or iptables rules, those rules wi
 
 _IP Layer_
 If you have numerous or very complex netfilter or iptables rules, those rules will be executed in the CPU context of the user process which initiated the original sendmsg call. If you have CPU pinning set up to restrict execution of this process to a particular CPU (or set of CPUs), be aware that the CPU will spend system time processing outbound iptables rules.
+
+_Transmit Packet Steering (XPS)_
+Transmit Packet Steering (XPS) is a feature that allows the system administrator to determine which CPUs can process transmit operations for each available transmit queue supported by the device. The aim of this feature is mainly to avoid lock contention when processing transmit requests. Other benefits like reducing cache evictions and avoiding remote memory access on NUMA machines are also expected when using XPS.

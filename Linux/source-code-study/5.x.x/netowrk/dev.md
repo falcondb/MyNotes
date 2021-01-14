@@ -240,14 +240,11 @@ Used by protocol instances of the higher protocols to send a packet in the form 
 ```
 dev_queue_xmit  ==> __dev_queue_xmit
   sch_handle_egress
-  txq = netdev_core_pick_tx
+  txq = netdev_pick_tx
   q = txq->qdisc
   if q->enqueue
     __dev_xmit_skb
-      if sch_direct_xmit
-        __qdisc_run   // sec traffic-control.md
-      else
-        q->enqueue(skb,...)
+
     job done!
 
     /* The device has no queue. Common case for software devices:
@@ -255,6 +252,77 @@ dev_queue_xmit  ==> __dev_queue_xmit
     dev_hard_start_xmit    
 ```
 
+```
+if (txq->xmit_lock_owner != cpu) {
+  if (unlikely(__this_cpu_read(xmit_recursion) >
+         XMIT_RECURSION_LIMIT))
+    goto recursion_alert;
+```
+Background about the above code block:
+There’s two cases: the transmit lock on this device queue is owned by this CPU or not. If so, a counter variable xmit_recursion, which is allocated per-CPU, is checked here to determine if the count is over the RECURSION_LIMIT. It is possible that one program could attempt to send data and get preempted right around this place in the code. Another program could be selected by the scheduler to run. If that second program attempts to send data as well and lands here. So, the xmit_recursion counter is used to prevent more than RECURSION_LIMIT programs from racing here to transmit data.
+
+```
+__dev_xmit_skb
+  if TCQ_F_NOLOCK
+    if __QDISC_STATE_DEACTIVATED // qdisc is deactived
+      __qdisc_drop
+    else
+      q->enqueue
+      qdisc_run(q)
+
+  // Heuristic to force contended enqueues to serialize on a separate lock before trying to get qdisc main lock.
+  if TCQ_F_CAN_BYPASS && !qdisc_qlen(q) && qdisc_run_begin(q)
+    // TCQ_F_CAN_BYPASS: bypass the queuing system, no traffic shaping
+    // !qdisc_qlen: no waiting packets in the queue
+    // qdisc_run_begin: seqlock is hold or is_running return false, otherwise set to running
+  if sch_direct_xmit // sec traffic-control.md
+    __qdisc_run   
+  qdisc_run_end  
+  else
+    q->enqueue(skb,...)
+    if qdisc_run_begin
+      __qdisc_run
+      qdisc_run_end // update qdisc->running and release seqlock
+```
+
+
+```
+netdev_pick_tx
+  struct net_device_ops *ops = dev->netdev_ops
+  if ops->ndo_select_queue)
+      // The driver implements ndo_select_queue, choose a TX queue more intelligently in a hardware or specific way
+			queue_index = ops->ndo_select_queue(dev, skb, sb_dev, __netdev_pick_tx);
+	else
+      // The driver does not implement `ndo_select_queue, so the kernel should pick
+			queue_index = __netdev_pick_tx(dev, skb, sb_dev);
+```
+
+```
+__netdev_pick_tx
+   sk_tx_queue_get // cached in skb?
+
+   if not cached or ooo_okay
+      get_xps_queue   // Transmit Packet Steering.
+      skb_tx_hash
+      sk_tx_queue_set // if not cached and can cache it
+```
+If the `ooo_okay` flag is set. If this flag is set, this means that out of order packets are allowed now. The protocol layers must set this flag appropriately. The TCP protocol layer sets this flag when all outstanding packets for a flow have been acknowledged. When this happens, the kernel can choose a different TX queue for this packet.
+
+
+```
+skb_tx_hash
+  if dev->num_tc  // device supports hardware based traffic control
+    tc = netdev_get_prio_tc_map(dev, skb->priority)
+
+  if skb_rx_queue_recorde // has been rcv or forwarded
+      hash = skb_get_rx_queue(skb)
+      while (unlikely(hash >= qcount))
+        hash -= qcount;
+      return hash + qoffset   // don't understand the logic behind it :(
+
+  reciprocal_scale(skb_get_hash(skb), qcount) + qoffset
+
+```
 
 * `dev_open`
 
@@ -309,6 +377,19 @@ rps_ipi_queued
     __raise_softirq_irqoff(NET_RX_SOFTIRQ)
 ```
 
+#### XSP
+* `get_xps_queue`
+```
+get_xps_queue
+  __get_xps_queue_idx
+    if dev->num_tc
+      tci *= dev->num_tc
+      tci += netdev_get_prio_tc_map(dev, skb->priority)
+
+    map = dev_maps->attr_map[tci]
+    map->queues[reciprocal_scale(skb_get_hash(skb), map->len)]
+      // reciprocal_scale scale" a value into range [0, @ep_ro)
+```
 
 #### XDP
 * `dev_change_xdp_fd`

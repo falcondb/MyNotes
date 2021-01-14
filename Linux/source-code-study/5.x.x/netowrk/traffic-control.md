@@ -200,6 +200,19 @@ static struct Qdisc_ops clsact_qdisc_ops __read_mostly = {
 };  
 ```
 
+`sch_direct_xmit` is checked for two cases:
+The queue is not empty (>0 returned). In this case, lock preventing contention from other programs is released and `__qdisc_run` is called to restart the qdisc processing.
+The queue was empty (0 is returned). In this case qdisc_run_end is used to turn off qdisc processing.
+
+```
+sch_direct_xmit
+  if !netif_xmit_frozen_or_stopped
+    dev_hard_start_xmit
+
+  dev_xmit_complete  
+```
+
+
 ```
 __qdisc_run
 	while (qdisc_restart(q, &packets))
@@ -275,6 +288,12 @@ qdisc_run
         __netif_schedule
   qdisc_run_end
 
+```
+
+```
+qdisc_run_end
+	write_seqcount_end(&qdisc->running)
+	spin_unlock(&qdisc->seqlock)
 ```
 
 responsible for getting the next packet from the queue of the network device and sending it
