@@ -138,12 +138,15 @@ vlan_do_receive
 ```
 
 * `net_tx_action`
-the handling routine of `NET_TX_SOFTIRQ`
+The handling routine of `NET_TX_SOFTIRQ` handles two main things:
+  - The completion queue of the softnet_data structure for the executing CPU.
+  - The output queue of the softnet_data structure for the executing CPU.
 ```
 net_tx_action
-  free skb in sd->completion_queue
-  for each Qdisc in sd->output_queue
-    qdisc_run
+  free skb in sd->completion_queue  // added in dev_kfree_skb_irq() by hardirq
+  for each Qdisc in sd->output_queue  // the queue quota runs out or dev busy or queue stopped
+    spin_lock(root_lock)
+    qdisc_run     // process the queues
 
 ```
 
@@ -282,7 +285,6 @@ __dev_xmit_skb
     q->enqueue(skb,...)
     if qdisc_run_begin
       __qdisc_run
-      qdisc_run_end // update qdisc->running and release seqlock
 ```
 
 
@@ -323,6 +325,14 @@ skb_tx_hash
   reciprocal_scale(skb_get_hash(skb), qcount) + qoffset
 
 ```
+
+```
+__netif_schedule ==>		__netif_reschedule
+  *sd->output_queue_tailp = q
+  sd->output_queue_tailp = &q->next_sched
+  raise_softirq_irqoff(NET_TX_SOFTIRQ)  // at this moment, still in user context, raise softirq, and deferred for kthread to process the rest
+```
+
 
 * `dev_open`
 
