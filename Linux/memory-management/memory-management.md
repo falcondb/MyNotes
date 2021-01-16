@@ -265,7 +265,34 @@ Userfaultfd [Userfaultfd Man page](https://man7.org/linux/man-pages/man2/userfau
 
 [DMA-API-HOWTO.txt](linux/Documentation/DMA-API-HOWTO.txt)
 
+
+[Memory Ordering at Compile Time](https://preshing.com/20120625/memory-ordering-at-compile-time/)
+The cardinal rule of memory reordering: not modify the behavior of a single-threaded program
+It’s only when lock-free techniques are used – when memory is shared between threads without any kind of mutual exclusion
+Compiler explicit memory barrier: `asm volatile("" ::: "memory")`
+Every function containing a compiler barrier must act as a compiler barrier itself, even when the function is inlined. In fact, the majority of function calls act as compiler barriers, whether they contain their own compiler barrier or not.
+
+[Memory Barriers Are Like Source Control Operations](https://preshing.com/20120710/memory-barriers-are-like-source-control-operations/)
+_Types of Memory Barrier_
+  - A LoadLoad barrier effectively prevents reordering of loads performed before the barrier with loads performed after the barrier.
+  - A StoreStore barrier effectively prevents reordering of stores performed before the barrier with stores performed after the barrier
+  - LoadStore
+     Encounters a load, he looks ahead at any stores that are coming up after that; if the stores are completely unrelated to the current load, then he’s allowed to skip ahead, do the stores first, then come back afterwards to finish up the load. if, say, there is a cache miss on the load followed by a cache hit on the store.
+  - A StoreLoad barrier ensures that all stores performed before the barrier are visible to other processors, and that all loads performed after the barrier receive the latest value that is visible at the time of the barrier.
+
 [Weak vs. Strong Memory Models](https://preshing.com/20120930/weak-vs-strong-memory-models/)
 A _memory model_ tells you, for a given processor or toolchain, exactly what types of memory reordering to expect at runtime relative to a given source code listing. Keep in mind that the effects of memory reordering can only be observed when lock-free programming techniques are used.
 
 A _hardware memory_ model tells you what kind of memory ordering to expect at runtime relative to an assembly (or machine) code listing.
+
+_Weak Memory Models_
+Any load or store operation can effectively be reordered with any other load or store operation, as long as it would never modify the behavior of a single, isolated thread. In reality, the reordering may be due to either compiler reordering of instructions, or memory reordering on the processor itself.
+Must still specify the correct memory ordering constraints, if only to prevent compiler reordering.
+
+CPU families with weak hardware ordering:
+  - _ARM_, _PowerPC_, _Itanium_
+
+_Strong Memory Models_
+A strong hardware memory model is one in which every machine instruction comes implicitly with acquire and release semantics. As a result, when one CPU core performs a sequence of writes, every other CPU core sees those values change in the same order that they were written.
+
+  

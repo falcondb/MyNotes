@@ -1,3 +1,5 @@
+[The Art of Multiprocessor Programming](https://www.amazon.com/Art-Multiprocessor-Programming-Revised-Reprint/dp/0123973376)
+
 [Concurrent Reading and Writing](https://lamport.azurewebsites.net/pubs/rd-wr.pdf)
 
 [How to Make a Multiprocessor Computer That Correctly Executes Multiprocess Programs](https://lamport.azurewebsites.net/pubs/lamport-how-to-make.pdf)
@@ -26,3 +28,9 @@
 [Some notes on lock-free and wait-free algorithms](http://www.rossbencina.com/code/lockfree?q=~rossb/code/lockfree/)
 
 [An Introduction to Lock-Free Programming](https://preshing.com/20120612/an-introduction-to-lock-free-programming/)
+_Read-modify-write (RMW)_ allowing you to perform more complex transactions atomically. They’re especially useful when a lock-free algorithm must support multiple writers, because when multiple threads attempt an RMW on the same address, they’ll effectively line up in a row and execute those operations one-at-a-time.
+
+On today’s architectures, the tools to enforce correct memory ordering generally fall into three categories, which prevent both compiler reordering and processor reordering:
+  - A lightweight sync or fence instruction
+  - A full memory fence instruction
+  - Memory operations which provide acquire or release semantics.
