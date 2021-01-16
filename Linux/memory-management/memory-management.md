@@ -264,3 +264,8 @@ Userfaultfd [Userfaultfd Man page](https://man7.org/linux/man-pages/man2/userfau
 [Documentation for /proc/sys/vm/](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/vm.html)
 
 [DMA-API-HOWTO.txt](linux/Documentation/DMA-API-HOWTO.txt)
+
+[Weak vs. Strong Memory Models](https://preshing.com/20120930/weak-vs-strong-memory-models/)
+A _memory model_ tells you, for a given processor or toolchain, exactly what types of memory reordering to expect at runtime relative to a given source code listing. Keep in mind that the effects of memory reordering can only be observed when lock-free programming techniques are used.
+
+A _hardware memory_ model tells you what kind of memory ordering to expect at runtime relative to an assembly (or machine) code listing.

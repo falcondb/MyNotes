@@ -12,7 +12,17 @@
 ## Segmentation Offloads
 [Segmentation Offloads @ Linux kernel doc](https://www.kernel.org/doc/html/latest/networking/segmentation-offloads.html)
 
-### GSO
+### TCP Segmentation Offload
+TCP segmentation allows a device to segment a single frame into multiple frames with a data payload size specified in `skb_shinfo()->gso_size`.
+
+TCP segmentation is dependent on support for the use of partial checksum offload. For this reason TSO is normally disabled if the Tx checksum offload for a given device is disabled.
+
+
+### IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads
+
+
+
+### GSO: Generic Segmentation Offload
 [GSO: Generic Segmentation Offload](https://wiki.linuxfoundation.org/networking/gso)
 Many people have observed that a lot of the savings in TSO come from traversing the networking stack once rather than many times for each super-packet.
 The key to minimising the cost in implementing this is to postpone the segmentation as late as possible. In the ideal world, the segmentation would occur inside each NIC driver.

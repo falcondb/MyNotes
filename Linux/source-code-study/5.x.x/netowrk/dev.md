@@ -238,6 +238,19 @@ enqueue_to_backlog
   goto enqueue;
 ```
 
+* `dev_direct_xmit`
+```
+dev_direct_xmit
+  validate_xmit_skb_list
+
+  skb_get_tx_queue
+
+  netdev_start_xmit
+
+  dev_xmit_complete
+```
+
+
 * `dev_queue_xmit`
 Used by protocol instances of the higher protocols to send a packet in the form of the socket buffer over a network device
 ```
@@ -250,6 +263,7 @@ dev_queue_xmit  ==> __dev_queue_xmit
 
     job done!
 
+    validate_xmit_skb
     /* The device has no queue. Common case for software devices:
   	 * loopback, all the sorts of tunnels...   
     dev_hard_start_xmit    
@@ -331,6 +345,51 @@ __netif_schedule ==>		__netif_reschedule
   *sd->output_queue_tailp = q
   sd->output_queue_tailp = &q->next_sched
   raise_softirq_irqoff(NET_TX_SOFTIRQ)  // at this moment, still in user context, raise softirq, and deferred for kthread to process the rest
+```
+
+
+* `dev_hard_start_xmit`
+Call down to the device driver to actually do the transmit operation.
+```
+dev_hard_start_xmit
+  for each skb in skb list
+    xmit_one
+      netdev_start_xmit
+```
+
+```
+netdev_start_xmit
+  struct net_device_ops *ops = dev->netdev_ops
+   __netdev_start_xmit(ops, ...)
+      ops->ndo_start_xmit
+```
+
+```
+validate_xmit_skb_list
+  for each skb in skb list
+    validate_xmit_skb
+```
+
+```
+validate_xmit_skb
+  validate_xmit_vlan
+    __vlan_hwaccel_push_inside
+      vlan_insert_tag_set_proto(skb, skb->vlan_proto, skb_vlan_tag_get(skb))
+      __vlan_hwaccel_clear_tag
+
+  sk_validate_xmit_skb
+    sk->sk_validate_xmit_skb
+
+  if netif_needs_gso
+    skb_gso_segment
+      skb_mac_gso_segment
+         ptype->callbacks.gso_segment
+
+  if skb_needs_linearize
+  /* If packet is not checksummed and device does not support checksumming for this protocol, complete checksumming here.
+  skb_set_inner_transport_header  or   skb_set_transport_header
+
+  validate_xmit_xfrm
 ```
 
 
@@ -439,8 +498,7 @@ do_xdp_generic
 
 ```
 generic_xdp_tx
-  netdev_start_xmit   ==>   __netdev_start_xmit
-    struct net_device_ops.ndo_start_xmit(skb, dev)
+  netdev_start_xmit
 
 ```
 

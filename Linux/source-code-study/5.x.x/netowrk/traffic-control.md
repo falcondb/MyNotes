@@ -206,6 +206,8 @@ The queue was empty (0 is returned). In this case qdisc_run_end is used to turn 
 
 ```
 sch_direct_xmit
+	validate_xmit_skb_list
+
   if !netif_xmit_frozen_or_stopped
     dev_hard_start_xmit
 

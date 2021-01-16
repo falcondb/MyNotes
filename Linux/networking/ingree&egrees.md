@@ -39,3 +39,13 @@ If you have numerous or very complex netfilter or iptables rules, those rules wi
 
 _Transmit Packet Steering (XPS)_
 Transmit Packet Steering (XPS) is a feature that allows the system administrator to determine which CPUs can process transmit operations for each available transmit queue supported by the device. The aim of this feature is mainly to avoid lock contention when processing transmit requests. Other benefits like reducing cache evictions and avoiding remote memory access on NUMA machines are also expected when using XPS.
+
+_Dynamic Queue Limits (DQL)_
+Network data spends a lot of time sitting queues at various stages as it moves closer and closer to the device for transmission. As queue sizes increase, packets spend longer sitting in queues not being transmit.
+The dynamic queue limit (DQL) system is a mechanism that device drivers can use to apply back pressure to the networking system to prevent too much data from being queued for transmit when the device is unable to transmit.
+To use this system, network device drivers need to make a few simple API calls during their transmit and completion routines. The DQL system internally will use an algorithm to determine when sufficient data is in transmit. Once this limit is reached, the transmit queue will be temporarily disabled. This queue disabling is what produces the back pressure against the networking system. The queue will be automatically re-enabled when the DQL system determines enough data has finished transmission.
+
+[slides about the DQL system](https://blog.linuxplumbersconf.org/2012/wp-content/uploads/2012/08/bql_slide.pdf)
+
+_Transmit completions_
+Devices may raise the same interrupt for receiving packets that it raises to signal that a packet transmit has completed. If it does, the `NET_RX` softirq runs to process both incoming packets and transmit completions.
