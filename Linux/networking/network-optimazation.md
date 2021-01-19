@@ -45,4 +45,31 @@ Transmit Packet Steering is a mechanism for intelligently selecting which transm
 2. XPS using receive queues map
   This mapping is used to pick transmit queue based on the receive queue(s) map configuration set by the administrator. A set of receive queues can be mapped to a set of transmit queues. This is useful for busy polling multi-threaded workloads where there are challenges in associating a given CPU to a given application thread. It has benefits in keeping the CPU overhead low. Transmit completion work is locked into the same queue-association that a given application is polling on. This avoids the overhead of triggering an interrupt on another CPU.
 
-  
+
+[Segmentation Offloads](https://www.kernel.org/doc/html/latest/networking/segmentation-offloads.html)
+_TCP Segmentation Offload_
+TCP segmentation allows a device to segment a single frame into multiple frames with a data payload size specified in `skb_shinfo()->gso_size`.
+TCP segmentation is dependent on support for the use of partial checksum offload. For this reason TSO is normally disabled if the Tx checksum offload for a given device is disabled.
+For IPv4 segmentation we support one of two types in terms of the IP ID. The default behavior is to increment the IP ID with every segment. If the GSO type SKB_GSO_TCP_FIXEDID is specified then we will not increment the IP ID and all segments will use the same IP ID.
+
+
+
+_IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads_
+
+
+
+_GSO: Generic Segmentation Offload_
+[GSO: Generic Segmentation Offload](https://wiki.linuxfoundation.org/networking/gso)
+Many people have observed that a lot of the savings in TSO come from traversing the networking stack once rather than many times for each super-packet.
+The key to minimising the cost in implementing this is to postpone the segmentation as late as possible. In the ideal world, the segmentation would occur inside each NIC driver.
+Unfortunately this requires modifying each and every NIC driver so it would take quite some time. A much easier solution is to perform the segmentation just before the entry into the driver's xmit routine. This concept is called GSO: Generic Segmentation Offload.
+
+_Generic Receive Offload GRO_
+Generic receive offload is the complement to GSO. Ideally any frame assembled by GRO should be segmented to create an identical sequence of frames using GSO, and any sequence of frames segmented by GSO should be able to be reassembled back to the original by GRO.
+
+_Partial Generic Segmentation Offload_
+Partial generic segmentation offload is a hybrid between TSO and GSO. What it effectively does is take advantage of certain traits of TCP and tunnels so that instead of having to rewrite the packet headers for each segment only the inner-most transport header and possibly the outer-most network header need to be updated.
+
+_SCTP acceleration with GSO_
+
+TOBESTUDIED

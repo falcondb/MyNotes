@@ -68,7 +68,7 @@ tcpdump -i nlmon0 -w nlmsg.pcap
 
 
 * SIT Tunnel: Simple Internet Transition
-    * IPV4 type == 41 /* IPv6-in-IPv4 tunnelling */ ?! Not sure about it. TODO: Verify it later.
+    * IPV4 type == 41 // IPv6-in-IPv4 tunnelling?! Not sure about it. TODO: Verify it later.
     * eth head -> Outer IPV4 header (type == 41?) -> Inner IPV6 header.
     * The main purpose is to interconnect isolated IPv6 networks, located in global IPv4 internet.
     * Mode any is used to accept both IP and IPv6 traffic

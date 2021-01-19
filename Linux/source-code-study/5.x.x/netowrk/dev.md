@@ -128,6 +128,12 @@ __netif_receive_skb_core
 
   vlan cases:
   vlan_do_receive
+
+  if rx_handler
+    if pt_prev
+      deliver_skb
+
+    rx_handler(skb)  
 ```
 
 ```

@@ -2,34 +2,29 @@
 
 ## Bridge
 [Anatomy of a Linux bridge](https://wiki.aalto.fi/download/attachments/70789083/linux_bridging_final.pdf)
+_switch_
+A software based switch, called a _bridge_. Network devices, called _switches_ are responsible for connecting several network links to each other, creating a local area network.
 
-[https://goyalankit.com/blog/linux-bridge](https://goyalankit.com/blog/linux-bridge)
+Conceptually, the major components of a network switch are a set of network ports, a control plane, a forwarding plane, and a MAC learning database. The control plane of a switch is typically used to run the Spanning Tree Protocol (STP) [15], that calculates a minimum spanning tree for the local area network, preventing physical loops from crashing the network.
+
+For each unicast destination MAC address, the switch looks up the output port in the MAC database. If an entry is found, the frame is forwarded through the port further into the network. If an entry is not found, the frame is instead flooded from all other network ports in the switch, except the port where the frame was received
+
+The Linux bridging module has two separate configuration interfaces exposed to the user-space of the operating system.
+The first, ioctl interface to create and destroy bridges
+The second, `sysfs` to tune parameters
+
+_Forwarding database_
+The forwarding database is an array of 256 elements, where each element is a singly linked list holding the forwarding table entries for the hash value. Unused entries in the forwarding table are cleaned up periodically by the br_cleanup function, that is invoked by
+the garbage collection timer.
+
+See bridge.md for code study
 
 
 ## IPSec
 [XFRM--A Kernel Implementation Framework of IPsec Protocol](https://programmer.ink/think/xfrm-a-kernel-implementation-framework-of-ipsec-protocol.html)
 
-## Segmentation Offloads
-[Segmentation Offloads @ Linux kernel doc](https://www.kernel.org/doc/html/latest/networking/segmentation-offloads.html)
 
-### TCP Segmentation Offload
-TCP segmentation allows a device to segment a single frame into multiple frames with a data payload size specified in `skb_shinfo()->gso_size`.
-
-TCP segmentation is dependent on support for the use of partial checksum offload. For this reason TSO is normally disabled if the Tx checksum offload for a given device is disabled.
-
-
-### IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads
-
-
-
-### GSO: Generic Segmentation Offload
-[GSO: Generic Segmentation Offload](https://wiki.linuxfoundation.org/networking/gso)
-Many people have observed that a lot of the savings in TSO come from traversing the networking stack once rather than many times for each super-packet.
-The key to minimising the cost in implementing this is to postpone the segmentation as late as possible. In the ideal world, the segmentation would occur inside each NIC driver.
-Unfortunately this requires modifying each and every NIC driver so it would take quite some time. A much easier solution is to perform the segmentation just before the entry into the driver's xmit routine. This concept is called GSO: Generic Segmentation Offload.
-
-
-## Lightweight
+## Lightweight tunneling
 [Lightweight & flow based tunneling](https://lwn.net/Articles/650778/)
 
 

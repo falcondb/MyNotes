@@ -6,14 +6,14 @@
 struct net_bridge {
 	spinlock_t			lock;
 	spinlock_t			hash_lock;
-	struct list_head		port_list;
-	struct net_device		*dev;
+	struct list_head		port_list;		// list of net_bridge_port
+	struct net_device		*dev;					// the bridge net_device
 	struct pcpu_sw_netstats		__percpu *stats;
 	unsigned long			options;
 	__be16				    vlan_proto;
 	u16				        default_pvid;
 	struct net_bridge_vlan_group	__rcu *vlgrp;
-	struct rhashtable		fdb_hash_tbl;
+	struct rhashtable		fdb_hash_tbl;		// forwarding DB
 	union {
 		struct rtable		  fake_rtable;
 		struct rt6_info		fake_rt6_info;
@@ -118,8 +118,8 @@ struct net_bridge_port {
 
 struct net_bridge_fdb_entry {
 	struct rhash_head		rhnode;
-	struct net_bridge_port		*dst;
-	struct net_bridge_fdb_key	key;
+	struct net_bridge_port		*dst;		// MAC addr last seen
+	struct net_bridge_fdb_key	key;		// MAC + vlan
 	struct hlist_node		fdb_node;
 	unsigned long			flags;
 	unsigned long			updated ____cacheline_aligned_in_smp;
@@ -179,18 +179,146 @@ br_dev_ioctl
 * `br_input.c`
 ```
 br_handle_frame
+	p = br_port_get_rcu(skb->dev)
+	if BR_VLAN_TUNNEL
+			br_handle_ingress_vlan_tunnel(skb, p, nbp_vlan_group_rcu(p))
 
+	// link local reserved addr (01:80:c2:00:00:0X) per IEEE 802.1Q 8.6.3 Frame filtering
+	if is_link_local_ether_addr
+		call __br_handle_local_finish or continue in br_handle_frame
+
+	switch net_bridge_port p->state
+		BR_STATE_FORWARDING:
+			rhook = rcu_dereference(br_should_route_hook)
+			(*rhook)(skb)
+				// return !0 continue in bridge, otherwise jump to network layer
+		BR_STATE_LEARNING:
+			NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,br_handle_frame_finish)
+
+```
+
+br_handle_frame_finish called after bridge netfilter hook, NF_BR_PRE_ROUTING
+```
+br_handle_frame_finish
+	br_fdb_update		// updates the fdb with the source MAC, and the source interface
+
+	BR_INPUT_SKB_CB(skb)->brdev = br->dev
+
+	IPv4 ARP/RARP: br_do_proxy_suppress_arp
+	IPv6 ND: br_do_suppress_nd
+
+	switch pkt_type
+		BR_PKT_MULTICAST:
+			mdst = br_mdb_get
+		BR_PKT_UNICAST:
+			dst = br_fdb_find_rcu		==>		fdb_find_rcu	// find a forwarding port for unicast
+
+	if dst
+		if dst->is_local
+			return br_pass_frame_up
+		br_forward
+	else				// forwarding port for unicast is not found, flood to all ports
+		br_flood or br_multicast_flood
+
+	if local_rcv
+		br_pass_frame_up
+```
+
+```
 br_pass_frame_up
   br_handle_vlan
-  NF_HOOK
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, br_netif_receive_skb)
+	// br_netif_receive_skb		==>	 netif_receive_skb
 ```
 
 * `br_forward.c`
 
 ```
 br_forward
-
-br_flood
+	/* redirect to backup link if the destination port is down */
+	if should_deliver	// /* Don't forward packets to originating port or forwarding disabled */
+		if local_rcv
+			deliver_clone
+		else
+			__br_forward
 ```
 
+```
+br_flood
+	for each port in br->port_list
+		// don't forward to ports with mismatched configuration
+		maybe_deliver
+
+	if local_rcv
+		deliver_clone
+	else
+		__br_forward
+```
+
+```
+__br_forward
+	br_handle_vlan
+
+	if !local_orig
+		br_hook = NF_BR_FORWARD
+	else
+		br_hook = NF_BR_LOCAL_OUT
+
+		NF_HOOK(NFPROTO_BRIDGE, br_hook, ..., br_forward_finish);
+```
+
+```
+br_forward_finish
+NF_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING, ..., br_dev_queue_push_xmit)
+	// br_dev_queue_push_xmit: if vlan, skb_set_network_header. dev_queue_xmit
+```
+
+```
+deliver_clone
+	skb_clone
+	__br_forward
+```
+
+```
+maybe_deliver
+	if !should_deliver
+		return
+
+	deliver_clone
+```
+
+#### Bridge VLAN
 * `br_vlan.c`
+```
+br_handle_vlan
+	// if should use vlan, kfree_skb and return null
+	br_handle_egress_vlan_tunnel
+		br_vlan_tunnel_lookup
+		skb_dst_drop
+		__vlan_hwaccel_put_tag(skb, p->br->vlan_proto, vlan->vid)
+```
+
+#### Bridge routing
+##### Initialization
+
+* `ebtable_broute.c`
+```
+__init ebtable_broute_init
+	register_pernet_subsys(&broute_net_ops)
+
+	RCU_INIT_POINTER(br_should_route_hook, ebt_broute)
+
+```
+
+```
+ebt_broute
+	nf_hook_state_init
+	ebt_do_table(skb, &state, state.net->xt.broute_table)
+```
+
+* `ebtables.c`
+```
+ebt_do_table
+
+
+```
