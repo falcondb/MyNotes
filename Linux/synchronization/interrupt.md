@@ -67,3 +67,5 @@ All new schemes of implementation of the bottom half handlers are built on the p
 Softirqs are determined statically at compile-time of the Linux kernel and the `open_softirq` function takes care of softirq initialization.
 
 `tasklets` are `softirqs` that can be allocated and initialized at runtime, `tasklets` that have the same type cannot be run on multiple processors at a time.
+
+`Workqueue` functions run in the context of a kernel process, but tasklet functions run in the software interrupt context. This means that workqueue functions must not be atomic as tasklet functions.

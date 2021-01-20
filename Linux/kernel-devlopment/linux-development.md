@@ -113,3 +113,5 @@ asmlinkage void do_softirq(void)
 ```
 
 [Understanding the Linux Kernel Initcall Mechanism](https://kernelnewbies.org/Documents/InitcallMechanism)
+
+[linux-insides](https://0xax.gitbooks.io/linux-insides/content/)

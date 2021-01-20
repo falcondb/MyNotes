@@ -103,3 +103,46 @@ raise_softirq ==> local_irq_save; raise_softirq_irqoff
   __raise_softirq_irqoff
     or_softirq_pending(1UL << nr)   // enable the nr softirq
 ```
+
+##### Tasklet
+`__tasklet_XXXX_common` is shared by `TASKLET_SOFTIRQ` and `TASKLET_HI_SOFTIRQ`
+```
+tasklet_schedule
+	if !test_and_set_bit(TASKLET_STATE_SCHED, &t->state)
+		__tasklet_schedule
+			__tasklet_schedule_common(t, &tasklet_vec, TASKLET_SOFTIRQ)
+				add the struct tasklet_struct to the tail of struct tasklet_head __percpu
+				raise_softirq_irqoff(softirq_nr)
+```
+
+```
+tasklet_action
+	tasklet_action_common
+		for each tasklet_struct t in the tasklet_head.head
+			t->func(t->data)
+
+		hoursekeeping of the tasklet_head
+		__raise_softirq_irqoff
+```
+
+##### Workqueues
+* `workqueue.h`
+```
+struct work_struct {
+	atomic_long_t data;
+	struct list_head entry;
+	work_func_t func;
+	struct lockdep_map lockdep_map;
+};
+```
+
+TOBESTUDIED
+* `kernel/workqueue.c`
+```
+__init workqueue_init
+
+```
+
+```
+queue_work
+```
