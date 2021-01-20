@@ -56,8 +56,10 @@ ip_rcv_finish_core
 	// new packet or !early_demux
 	ip_rcv_options
 	if !skb_valid_dst
-		ip_route_input_noref	// ip_forward
-	rt = skb_rtable(skb)
+		ip_route_input_noref
+			ip_route_input_rcu
+				if multicast,	ip_route_input_mc
+				else ip_route_input_slow
 ```
 
 * `ip_local_deliver`

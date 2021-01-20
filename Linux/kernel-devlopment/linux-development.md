@@ -36,24 +36,39 @@ It is a step-by-step introduction of adding vDSO function to userspace and kerne
 Good lectures and examples on Syscall, interrupt, and SMP.
 
 Disabling preemption (interrupts)
+[x86 and amd64 instruction reference](https://www.felixcloutier.com/x86/index.html)
 ```
-## TO BE further study
 #define local_irq_disable() \
     asm volatile („cli” : : : „memory”)
+```
+`CLI` clears the IF flag in the EFLAGS register and no other flags are affected. Clearing the IF flag causes the processor to ignore maskable external interrupts.
 
+```
 #define local_irq_enable() \
    asm volatile („sti” : : : „memory”)
+```
+`STI` sets the interrupt flag (IF) in the EFLAGS register. This allows the processor to respond to maskable hardware interrupts
 
+```
 #define local_irq_save(flags) \
    asm volatile ("pushf ; pop %0" :"=g" (flags)
                  : /* no input */: "memory") \
    asm volatile("cli": : :"memory")
+```
+`pushf`: Decrements the stack pointer by 4 (if the current operand-size attribute is 32) and pushes the entire contents of the EFLAGS register onto the stack, or decrements the stack pointer by 2 (if the operand-size attribute is 16) and pushes the lower 16 bits of the EFLAGS register (that is, the FLAGS register) onto the stack. These instructions reverse the operation of the POPF/POPFD instructions.
 
+`pop`: Loads the value from the top of the stack to the location specified with the destination operand (or explicit opcode) and then increments the stack pointer. The destination operand can be a general-purpose register, memory location, or segment register.
+
+"=g": eax, ebx, ecx, edx or variable in memory, here is `flags`.
+```
 #define local_irq_restore(flags) \
    asm volatile ("push %0 ; popf"
                  : /* no output */
                  : "g" (flags) :"memory", "cc");
 ```
+`popf`: Pops a doubleword (POPFD) from the top of the stack (if the current operand-size attribute is 32) and stores the value in the EFLAGS register, or pops a word from the top of the stack (if the operand-size attribute is 16) and stores it in the lower 16 bits of the EFLAGS register (that is, the FLAGS register). These instructions reverse the operation of the PUSHF/PUSHFD/PUSHFQ instructions.
+Clobbers: `cc` flags register, `memory` memory reads or writes.
+
 >Although the interrupts can be explicitly disabled and enable with local_irq_disable() and local_irq_enable() these APIs should only be used when the current state and interrupts is known. They are usually used in core kernel code (like interrupt handling).
 
 >For typical cases where we want to avoid interrupts due to concurrency issues it is recommended to use the local_irq_save() and local_irq_restore() variants. They take care of saving and restoring the interrupts states so they can be freely called from overlapping critical sections without the risk of accidentally enabling interrupts while still in a critical section, as long as the calls are balanced.
@@ -96,3 +111,5 @@ asmlinkage void do_softirq(void)
     ...
 }
 ```
+
+[Understanding the Linux Kernel Initcall Mechanism](https://kernelnewbies.org/Documents/InitcallMechanism)

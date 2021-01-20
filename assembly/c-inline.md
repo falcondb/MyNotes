@@ -34,6 +34,10 @@ With extended asm you can read and write C variables from assembler and perform 
 `volatile`: The typical use of extended asm statements is to manipulate input values to produce output values. However, your asm statements may also produce side effects. If so, you may need to use the volatile qualifier to disable certain optimizations.
 
 `Clobbers` A comma-separated list of registers or other values changed by the AssemblerTemplate, beyond those listed as outputs
+Two special clobber arguments:
+  - The "cc" clobber indicates that the assembler code modifies the flags register. On some machines, GCC represents the condition codes as a specific hardware register; "cc" serves to name this register. On other machines, condition code handling is different, and specifying "cc" has no effect. But it is valid no matter what the target.
+
+  - The "memory" clobber tells the compiler that the assembly code performs memory reads or writes to items other than those listed in the input and output operands (for example, accessing the memory pointed to by one of the input parameters). To ensure memory contains correct values, GCC may need to flush specific register values to memory before executing the asm. Further, the compiler does not assume that any values read from memory before an asm remain unchanged after that asm; it reloads them as needed. Using the "memory" clobber effectively forms a read/write memory barrier for the compiler.
 
 `%%` Outputs a single `%` into the assembler code. `%{ %| %}` Outputs the characters into the assembler code.
 

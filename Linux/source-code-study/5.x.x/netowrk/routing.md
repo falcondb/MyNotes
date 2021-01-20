@@ -203,27 +203,73 @@ __mkroute_output
 		rth->dst.output = ip_mc_output
 
 	rt_set_nexthop
-		if nh->nh_scope == RT_SCOPE_LINK
-			rt->rt_gateway = nh->nh_gw
-		if do_cache
-			cached = rt_cache_route
-		else
-			rt_add_uncached_list
+		// see below
 ```
 
 * `__mkroute_input`
 ` ip_rcv_finish ==> ip_rcv_finish_core (/ip_route_input) ==> ip_route_input_noref ==> ip_route_input_rcu ==> ip_route_input_slow ==> ip_mkroute_input ==> __mkroute_input`
 ```
 __mkroute_input
- find_exception
+ fnhe = find_exception		// find a match and clean up routing entry if expired
+ if fnhe
+			rth = rcu_dereference(fnhe->fnhe_rth_input)
+ else
+			rth = rcu_dereference(nhc->nhc_rth_input)
+
+ skb_dst_set_noref(skb, &rth->dst)
+ done
+
  rt_dst_alloc
  rth->dst.input = ip_forward
  rt_set_nexthop
+ 		// see below
  skb_dst_set(skb, &rth->dst)
 ```
 
-* `	find_exception `
-cached cases TOBESTUDIED
+```
+rt_set_nexthop
+	if nh->nh_scope == RT_SCOPE_LINK
+		// in 5.11.x: rt->rt_gateway = nh->nh_gw		
+		// in 5.0.9: rt->rt_gw4 = nhc->nhc_gw.ipv4 or nhc->nhc_gw.ipv6
+	if do_cache
+		cached = rt_cache_route
+	else
+		rt_add_uncached_list
+```
+
+```
+rt_cache_route
+	if rt_is_input_route(rt))
+		p = &nhc->nhc_rth_input
+	else
+		p = raw_cpu_ptr(nhc->nhc_pcpu_rth_output)
+
+	orig = *p
+	prev = cmpxchg(p, orig, rt)
+
+	rt_add_uncached_list(orig)
+```
+
+```
+ip_route_input_slow
+	skb_dst_drop
+
+	fib_lookup(net, &fl4, res, 0)
+
+	if res->type != RTN_BROADCAST != RTN_LOCAL
+	ip_mkroute_input
+
+	if res->type == RTN_LOCAL
+		rt_dst_alloc
+```
+
+```
+rt_dst_alloc
+	rt = dst_alloc
+	rt->dst.output = ip_output
+	if (flags & RTCF_LOCAL)
+			rt->dst.input = ip_local_deliver
+```
 
 * `fib_lookup` in `ip_fib.h`
 FIB query
