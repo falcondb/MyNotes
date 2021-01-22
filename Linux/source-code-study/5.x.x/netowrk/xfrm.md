@@ -23,6 +23,14 @@ struct xfrm_input_afinfo {
 	unsigned int		family;
 	int			(*callback)(struct sk_buff *skb, u8 protocol, int err);
 }
+
+struct xfrm_state_afinfo {
+  unsigned int			family;
+  unsigned int			proto;
+  __be16				eth_proto;
+  const struct xfrm_type		*type_map[IPPROTO_MAX];
+  ...
+}
 ```
 
 `uapi/linux/xfrm.h`
@@ -115,6 +123,19 @@ __init xfrm_user_init
 
 ```
 
+#### protocol initialization
+* `net/ipv4/xfrm4_protocol.c`
+```
+static const struct xfrm_input_afinfo xfrm4_input_afinfo = {
+	.family		=	AF_INET,
+	.callback	=	xfrm4_rcv_cb,
+};
+
+xfrm4_protocol_init
+  xfrm_input_register_afinfo(&xfrm4_input_afinfo)
+    rcu_assign_pointer(xfrm_input_afinfo[afinfo->family], afinfo)
+```
+
 #### AH Initialization
 * `net/ipv4/ah4.c`
 ```
@@ -135,12 +156,19 @@ static struct xfrm4_protocol ah4_protocol = {
 	.err_handler	=	ah4_err,
 };
 ```
+
 ```
 __init ah4_init
   xfrm_register_type(&ah_type, AF_INET)
     afinfo = xfrm_state_get_afinfo
     afinfo->type_map[type->proto] = type
   xfrm4_protocol_register(&ah4_protocol, IPPROTO_AH)
+```
+
+```
+ah_input
+  ah = (struct ip_auth_hdr *)skb->data
+  
 ```
 
 #### ingress common
@@ -212,12 +240,6 @@ static const struct net_protocol ipcomp4_protocol = {
 };
 ```
 
-```
-static const struct xfrm_input_afinfo xfrm4_input_afinfo = {
-	.family		=	AF_INET,
-	.callback	=	xfrm4_rcv_cb,
-};
-```
 
 ```
 xfrm4_rcv_cb

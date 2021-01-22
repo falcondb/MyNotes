@@ -4,7 +4,7 @@
 #### `netdevice.h`
 * `struct net_device`
   see network/key-data-structure.md
-
+  also refer to the book _Understand Linux Network Internals_
 * `softnet_data`
 Incoming packets are placed on per-CPU queues
 ```
@@ -85,6 +85,16 @@ struct list_head ptype_all __read_mostly;
 #### Initialization
 ```
 __init net_dev_init
+
+  dev_proc_init
+  netdev_kobject_init
+
+  // The protocol handler vector
+  INIT_LIST_HEAD(&ptype_all)
+  INIT_LIST_HEAD(&ptype_base[i])
+
+  INIT_LIST_HEAD(&offload_base)
+
   for each possible CPU
     struct softnet_data initialization
     sd->backlog.poll = process_backlog

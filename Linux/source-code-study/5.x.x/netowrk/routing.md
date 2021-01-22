@@ -133,15 +133,15 @@ fib_rules_net_init
 __init ip_fib_init
  fib_trie_init
  register_pernet_subsys(&fib_net_ops);
- register_netdevice_notifier(&fib_netdev_notifier);
- register_inetaddr_notifier(&fib_inetaddr_notifier);
+ register_netdevice_notifier(&fib_netdev_notifier);		// register the ip address change notifier chain
+ register_inetaddr_notifier(&fib_inetaddr_notifier);	// register the dev change notifier chain. see notification-chain.md
  rtnl_register  \\ netlink for inet_rtm_newroute, inet_rtm_delroute, inet_dump_fib
 
 
- static struct pernet_operations fib_net_ops = {
- 	.init = fib_net_init,
- 	.exit = fib_net_exit,
- };
+static struct pernet_operations fib_net_ops = {
+	.init = fib_net_init,
+	.exit = fib_net_exit,
+};
 
 fib_net_init
   ip_fib_net_init

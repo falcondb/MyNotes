@@ -93,6 +93,7 @@ struct pernet_operations {
 
 
 #### linux/netdevice.h
+Refer to the book _Understand Linux Network Internals_
 ```
 struct net_device {
 	char			name[IFNAMSIZ];
