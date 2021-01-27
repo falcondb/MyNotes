@@ -83,6 +83,12 @@ struct list_head ptype_all __read_mostly;
 
 ### Key functions
 #### Initialization
+Network setup at boot time
+```
+netdev_boot_setup
+
+```
+
 ```
 __init net_dev_init
 
@@ -174,7 +180,8 @@ net_rx_action
     struct napi_struct *n = list_first_entry  // first element of struct napi_struct.poll_list
     napi_poll
       // napi_poll code block
-  __raise_softirq_irqoff(NET_RX_SOFTIRQ)   // softirq.c
+  __raise_softirq_irqoff(NET_RX_SOFTIRQ)   
+    // softirq.c, make NET_RX_SOFTIRQ softirq pending. sets the bit flag associated to the softirq to run
 
   net_rps_action_and_irq_enable
     local_irq_enable
@@ -360,7 +367,10 @@ skb_tx_hash
 __netif_schedule ==>		__netif_reschedule
   *sd->output_queue_tailp = q
   sd->output_queue_tailp = &q->next_sched
-  raise_softirq_irqoff(NET_TX_SOFTIRQ)  // at this moment, still in user context, raise softirq, and deferred for kthread to process the rest
+  raise_softirq_irqoff(NET_TX_SOFTIRQ)  
+  // at this moment, still in user context, raise softirq, and deferred for kthread to process the rest
+  // also schedules the ksoftirqd thread, if the function is not called
+  // from a hardware or software interrupt context and preemption has not been disabled
 ```
 
 

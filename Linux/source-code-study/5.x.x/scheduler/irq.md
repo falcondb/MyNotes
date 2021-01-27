@@ -29,6 +29,12 @@ open_softirq
 
 ```
 do_softirq
+	if in_interrupt() 	// the current CPU is serving hardware of software irq
+		return
+
+	local_irq_save
+
+	// if any pending softirq and ksoftirqd is not scheduled
   do_softirq_own_stack
     arch dependent x86_32:
       /* build the stack frame on the softirq stack */
@@ -54,6 +60,45 @@ irq_exit
 raise_softirq ==> local_irq_save; raise_softirq_irqoff
   __raise_softirq_irqoff
     or_softirq_pending(1UL << nr)   // enable the nr softirq
+```
+
+#### ksoftirqd
+ksoftirqd system is initialized in `kernel/softirq.c`
+```
+DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
+
+static struct smp_hotplug_thread softirq_threads = {
+	.store			= &ksoftirqd,
+	.thread_should_run	= ksoftirqd_should_run,
+	.thread_fn		= run_ksoftirqd,
+	.thread_comm		= "ksoftirqd/%u",
+};
+
+```
+
+```
+run_ksoftirqd
+  if local_softirq_pending()
+    __do_softirq()
+      struct softirq_action h->action(h)
+    local_irq_enable()
+    cond_resched()
+      // TOBESTUDIED
+```
+
+```
+run_ksoftirqd
+	local_irq_disable
+
+	if local_softirq_pending
+		__do_softirq
+		cond_resched
+```
+
+
+```
+__init int spawn_ksoftirqd(void)
+	cpuhp_setup_state_nocalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL, takeover_tasklets);
 ```
 
 #### `kernel/smpboot.c`

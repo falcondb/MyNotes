@@ -1,5 +1,5 @@
 ## proc filesystem
-
+Refer to the book _Understand Linux Network Internals_
 ### Key data structures
 * `fs/proc/internal.h`
 
@@ -42,3 +42,5 @@ struct proc_dir_entry {
 
 ### Key functions
 * `fs/proc/generic.c`
+
+* `kernel/sysctl.c`
