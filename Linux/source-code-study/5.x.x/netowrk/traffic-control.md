@@ -1,5 +1,5 @@
 ## Traffic control
-
+Refer to the book _Understand Linux Netowrk Internals_
 ### Key data structures
 
 #### Queuing discipline

@@ -95,7 +95,6 @@ ip_local_deliver_finish
 
 * ` ip_route_input` in `net/route.h`
 
-* `ip_queue_xmit`
 
 #### egress
 
@@ -152,6 +151,7 @@ ip_finish_output2
 
 * `dev_queue_xmit`
 
+* `ip_push_pending_frames`
 
 
 
