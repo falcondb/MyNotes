@@ -19,6 +19,40 @@ static struct packet_type ip_packet_type __read_mostly = {
 * `net/ipv4/af_inet.c`
 ```
 __init inet_init
+	proto_register(&tcp_prot, 1)
+	proto_register(&udp_prot, 1)
+	proto_register(&raw_prot, 1)
+	proto_register(&ping_prot, 1)
+	sock_register(&inet_family_ops)
+
+	inet_add_protocol(&icmp_protocol, IPPROTO_ICMP)
+	inet_add_protocol(&udp_protocol, IPPROTO_UDP)
+	inet_add_protocol(&tcp_protocol, IPPROTO_TCP)
+	inet_add_protocol(&igmp_protocol, IPPROTO_IGMP)
+
+	arp_init
+	ip_init
+	tcp_init
+	udp_init
+	udplite4_register
+	raw_init
+	ping_init
+	icmp_init
+	ip_mr_init
+	init_inet_pernet_ops
+	init_ipv4_mibs
+	ipv4_proc_init
+	ipfrag_init
+	dev_add_pack(&ip_packet_type)
+	ip_tunnel_core_init
+```
+
+* `net/ipv4/ip_output.c`
+```
+__init ip_init
+	ip_rt_init		// route.md
+	inet_initpeers	// inetpeer.c, long live IP peer
+	igmp_mc_init		// igmp.c, IGMP
 
 ```
 
@@ -454,4 +488,14 @@ ip_mr_forward
 
 ```
 ipmr_queue_xmit
+```
+
+#### inetpeer
+
+##### Initialization
+* `ipv4/inetpeer.c`
+```
+__init inet_initpeers
+	// set cache size limitation 
+	peer_cachep = kmem_cache_create("inet_peer_cache", ...)
 ```
