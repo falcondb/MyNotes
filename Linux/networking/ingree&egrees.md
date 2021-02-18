@@ -1,5 +1,8 @@
 ## Network package processing
 ### ingress
+Key steps in ingress path
+  - NIC receives a frame from wire, _DMA_ to memory, raise a hardware interrupt, hardware interrupt handler in device driver adds the frame to device's `input_pkt_queue`, and the device to `poll_list` of the percpu `softnet_data`. The `poll_list` includes the devices with pending received frames. The driver raises SoftIRQ with handler `net_rx_action`. `net_rx_action` goes through the devices in `poll_list` and calls `napi_poll` on the device. `napi_poll` then calls the poll function registered with the device. The poll function is on the driver side and it eventually calls `netif_receive_skb`, which starts to process the frame. `netif_receive_skb` may enqueue the frame to a different CPU's `softnet_data` through _RPS(Receive Packet Steering see below)_, otherwise, calls `__netif_receive_skb ==> __netif_receive_skb_one_core ==> __netif_receive_skb_core`. `__netif_receive_skb_core` handles _frame taps_, _CONFIG_NET_INGRESS_, for _VLAN_, gets the device from _VLAN ID_ and pull out the _VLAN_ header from _SKB_, then calls `deliver_skb`. `deliver_skb` calls the network protocol's handlers, e.g., `ip_rcv` for IPv4 package.
+
 [Monitoring and Tuning the Linux Networking Stack: Receiving Data](https://blog.packagecloud.io/eng/2016/06/22/monitoring-tuning-linux-networking-stack-receiving-data/)
 
 _Register an interrupt handler_

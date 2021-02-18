@@ -69,3 +69,4 @@ Softirqs are determined statically at compile-time of the Linux kernel and the `
 `tasklets` are `softirqs` that can be allocated and initialized at runtime, `tasklets` that have the same type cannot be run on multiple processors at a time.
 
 `Workqueue` functions run in the context of a kernel process, but tasklet functions run in the software interrupt context. This means that workqueue functions must not be atomic as tasklet functions.
+The work queue subsystem is an interface for creating kernel threads to handle work that is queued from elsewhere. All of these kernel threads are called -- worker threads.
