@@ -133,15 +133,15 @@ fib_rules_net_init
 __init ip_fib_init
  fib_trie_init
  register_pernet_subsys(&fib_net_ops);
- register_netdevice_notifier(&fib_netdev_notifier);
- register_inetaddr_notifier(&fib_inetaddr_notifier);
+ register_netdevice_notifier(&fib_netdev_notifier);		// register the ip address change notifier chain
+ register_inetaddr_notifier(&fib_inetaddr_notifier);	// register the dev change notifier chain. see notification-chain.md
  rtnl_register  \\ netlink for inet_rtm_newroute, inet_rtm_delroute, inet_dump_fib
 
 
- static struct pernet_operations fib_net_ops = {
- 	.init = fib_net_init,
- 	.exit = fib_net_exit,
- };
+static struct pernet_operations fib_net_ops = {
+	.init = fib_net_init,
+	.exit = fib_net_exit,
+};
 
 fib_net_init
   ip_fib_net_init
@@ -151,6 +151,32 @@ fib_net_init
 * `net/ipv4/route.c`
 ```
 __init ip_rt_init
+
+	for_each_possible_cpu
+			struct uncached_list *ul = &per_cpu(rt_uncached_list, cpu)
+
+		ipv4_dst_ops.kmem_cachep = kmem_cache_create("ip_dst_cache", sizeof(struct rtable), 0,...)
+
+		dst_entries_init(&ipv4_dst_blackhole_ops)
+		devinet_init
+		ip_fib_init
+
+		ip_rt_proc_init
+		xfrm_init
+		xfrm4_init
+		rtnl_register
+
+```
+
+* `net/ipv4/fib_frontend.c`
+```
+__init ip_fib_init
+	fib_trie_init
+	register_pernet_subsys(&fib_net_ops)
+	register_netdevice_notifier(&fib_netdev_notifier)
+	register_inetaddr_notifier(&fib_inetaddr_notifier)
+
+	rtnl_register(PF_INET, RTM_NEWROUTE / RTM_DELROUTE / RTM_GETROUTE)
 ```
 
 #### key operations

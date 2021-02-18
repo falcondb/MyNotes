@@ -12,7 +12,7 @@ _SoftIRQs_
 The softirq system in the Linux kernel is a mechanism for executing code outside of the context of an interrupt handler implemented in a driver.
 The softirq system can be imagined as a series of kernel threads that run handler functions which have been registered for different softirq events.
 
-_Generic Receive Offloading (GRO)_
+_Generic Receive Offloading (GRO)_interrupt.md
 Generic Receive Offloading (GRO) is a software implementation of a hardware optimization that is known as Large Receive Offloading (LRO). The main idea behind both methods is that reducing the number of packets passed up the network stack by combining “similar enough” packets together can reduce CPU usage. GRO was introduced as an implementation of LRO in software, but with more strict rules around which packets can be coalesced.
 
 A list of GRO offload filters is traversed to allow the higher level protocol stacks to act on a piece of data which is being considered for GRO. This is done so that the protocol layers can let the network device layer know if this packet is part of a network flow that is currently being receive offloaded and handle anything protocol specific that should happen for GRO.

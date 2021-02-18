@@ -1,34 +1,5 @@
 ## interrupt handling
 
-[Monitoring and Tuning the Linux Networking Stack: Receiving Data](https://blog.packagecloud.io/eng/2016/06/22/monitoring-tuning-linux-networking-stack-receiving-data/)
-ksoftirqd system is initialized in `kernel/softirq.c`
-```
-DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
-
-static struct smp_hotplug_thread softirq_threads = {
-	.store			= &ksoftirqd,
-	.thread_should_run	= ksoftirqd_should_run,
-	.thread_fn		= run_ksoftirqd,
-	.thread_comm		= "ksoftirqd/%u",
-};
-
-```
-
-```
-run_ksoftirqd
-  if local_softirq_pending()
-    __do_softirq()
-      struct softirq_action h->action(h)
-    local_irq_enable()
-    cond_resched()
-      // TOBESTUDIED
-```
-
-```
-__init int spawn_ksoftirqd(void)
-	cpuhp_setup_state_nocalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL, takeover_tasklets);
-```
-
 [Linux Device Driver: Chapter 10](https://static.lwn.net/images/pdf/LDD3/ch10.pdf)
 
 * Disable interrupt delievery
@@ -69,4 +40,20 @@ Softirqs are determined statically at compile-time of the Linux kernel and the `
 `tasklets` are `softirqs` that can be allocated and initialized at runtime, `tasklets` that have the same type cannot be run on multiple processors at a time.
 
 `Workqueue` functions run in the context of a kernel process, but tasklet functions run in the software interrupt context. This means that workqueue functions must not be atomic as tasklet functions.
-The work queue subsystem is an interface for creating kernel threads to handle work that is queued from elsewhere. All of these kernel threads are called -- worker threads.
+
+[Understanding Linux Network Internals](https://www.amazon.com/Understanding-Linux-Network-Internals-Networking-ebook/dp/B0043EWV3S)
+
+| Function	| Description	|
+| ---				| ---					|
+|in_interrupt	| returns TRUE if the CPU is currently serving a hardware or software interrupt, or preemption is disabled.|
+| in_softirq  |  returns TRUE if the CPU is currently serving a software interrupt	|
+| in_irq in_irq | returns TRUE if the CPU is currently serving a hardware interrupt. |
+| softirq_pending | Returns TRUE if there is at least one softirq pending (i.e., scheduled for execution) for he CPU whose ID was passed as the input argument. |
+|local_softirq_pending | Returns TRUE if there is at least one softirq pending for the local CPU. |
+| __raise_softirq_irqoff| Sets the flag associated with the input softirq type to mark it pending. |
+|raise_softirq_irqoff| This is a wrapper around __raise_softirq_irqoff that also wakes up ksoftirqd when in_interrupt( ) returns FALSE.|
+| raise_softirq| |a wrapper around raise_softirq_irqoff that disables hardware interrupts before calling it and restores them to their original status. |
+|__local_bh_enable, local_bh_enable | __local_bh_enable enables bottom halves (and thus softirqs/tasklets) on the local CPU, and local_bh_enable also invokes invoke_softirq if any softirq is pending and in_interrupt( ) returns FALSE.|
+| spin_lock_bh | Acquire and release a spinlock, respectively. Both functions disable and then reenable bottom halves and preemption during the operation. |
+| preempt_enable	| enables preemption, checks whether the counter is zero and forces a call to schedule( ) to allow any higher-priority task to run|
+| preempt_enable_no_resched | simply decrements a reference counter, which allows preemption to be re-enabled when it reaches zero. |
