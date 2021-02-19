@@ -35,6 +35,19 @@ if you have numerous or very complex netfilter or iptables rules, those rules wi
 
 
 ### egress
+Key steps in egress path
+  - Create a socket with address family (`AF_INET, AF_INET6`), socket type (`SOCK_STREAM, SOCK_DGRAM, SOCK_RAW`) and protocol (`IPPROTO_TCP, IPPROTO_UDP, IPPROTO_RAW`). In kernel, handlers for address families are registered at `struct proto_ops` and `struct proto` in `struct inet_protosw inetsw_array[]`.
+  - Switch to kernel model from system call, take _UDP_ as an example of transport layer. The system call for UDP is `sock_sendmsg`, which calls `security_socket_sendmsg` or `sock_sendmsg_nosec ==> sock->ops->sendmsg`. For `SOCK_DGRAM`, `inet_sendmsg` is registered as `sendmsg`. `sendmsg` just calls `sk->sk_prot->sendmsg`, which points to `udp_sendmsg` for `IPPROTO_UDP`.
+  - In `udp_sendmsg`, accumulating more messages and calls `ip_append_data` for _UDP corking_ (refer to _Understand Linux Network Internals_). Next handling socket control message, IP options (SRR and TOS), Multicast, DST cache check, ARP cache confirm. Non corking, `ip_make_skb` and `udp_send_skb`; corking case, `ip_append_data` and `udp_flush_pending_frames ==> udp_flush_pending_frames; udp_send_skb` (refer to _Understand Linux Network Internals_).
+  - `udp_send_skb` handles _GSO_, _UDPLITE_, adds checksum in transport header, then calls `ip_send_skb`.
+  - `ip_send_skb ==> ip_local_out ==> __ip_local_out`,  `__ip_local_out` makes a _netfilter_ hook call, `nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT,..., dst_output)`.
+  - `skb_dst(skb)->output` points to `ip_output` or `ip_mc_output`. `ip_output` makes another _netfilter_ hook call, `NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING,..., ip_finish_output)`. `ip_mc_output` makes a _netfilter_ hook call, `NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING,ip_mc_finish_output)` or `NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING,..., ip_finish_output)`.
+  - `ip_finish_output` runs `BPF_CGROUP_RUN_PROG_INET_EGRESS`, then `__ip_finish_output`, which first handles _XFRM_ policy, _GSO_ (`ip_finish_output_gso`), `ip_fragment` if necessary, or `ip_finish_output2`.
+  - `ip_finish_output2` calls `ip_neigh_for_gw`, which looks up the neighbour cache or quries neighbour table, then `neigh_output`.
+  - `neigh_output` calls `neigh_hh_output` using neighbour cache with the link layer header or the slow route `struct neighbour.output`
+  - `struct neighbour.output` can be set to different handlers, `neigh_direct_output`, `neigh_resolve_output` according to destination state (_NUD_). Eventually, they will call `dev_queue_xmit`
+
+  
 [Monitoring and Tuning the Linux Networking Stack: Sending Data](https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/)
 
 _IP Layer_
