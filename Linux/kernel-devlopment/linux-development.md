@@ -29,6 +29,14 @@ _MSR_IA32_SYSENTER_EIP (0x176)_ handles the _SYSENTER_ instruction
 Introduction of vDSO, unfortunately the [post](http://www.trilithium.com/johan/2005/08/linux-gate/) by Johan Petersson is not available any more.
 A little bit about ptrace(): syscall tracing
 
+[The Definitive Guide to Linux System Calls](https://blog.packagecloud.io/eng/2016/04/05/the-definitive-guide-to-linux-system-calls/)
+A software interrupt is raised by executing a piece of code. On x86-64 systems, a software interrupt can be raised by executing the int instruction.
+use the CPU instructions `rdmsr` to `wrmsr` to read and write _MSRs_
+```
+sudo apt-get install msr-tools
+sudo modprobe msr
+sudo rdmsr
+```
 [Creating a vDSO: the Colonel's Other Chicken](https://www.linuxjournal.com/content/creating-vdso-colonels-other-chicken)
 It is a step-by-step introduction of adding vDSO function to userspace and kernel space, but the code is hard to follow and reading the Linux source code probably can release the magic
 
