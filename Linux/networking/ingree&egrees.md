@@ -47,7 +47,7 @@ Key steps in egress path
   - `neigh_output` calls `neigh_hh_output` using neighbour cache with the link layer header or the slow route `struct neighbour.output`
   - `struct neighbour.output` can be set to different handlers, `neigh_direct_output`, `neigh_resolve_output` according to destination state (_NUD_). Eventually, they will call `dev_queue_xmit`
 
-
+  - OK, entering _TC_ and Link layer from `dev_queue_xmit`. For non soft-device, `netdev_core_pick_tx ==> __dev_xmit_skb`
 [Monitoring and Tuning the Linux Networking Stack: Sending Data](https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/)
 
 _IP Layer_

@@ -31,12 +31,67 @@ A little bit about ptrace(): syscall tracing
 
 [The Definitive Guide to Linux System Calls](https://blog.packagecloud.io/eng/2016/04/05/the-definitive-guide-to-linux-system-calls/)
 A software interrupt is raised by executing a piece of code. On x86-64 systems, a software interrupt can be raised by executing the int instruction.
-use the CPU instructions `rdmsr` to `wrmsr` to read and write _MSRs_
+use the CPU instructions `rdmsr` to `wrmsr` to read and write _MSRs_ (Model Specific Registers)
 ```
 sudo apt-get install msr-tools
 sudo modprobe msr
 sudo rdmsr
 ```
+* Legacy system calls
+  - `IA32_SYSCALL_VECTOR` is a defined as 0x80 in `arch/x86/include/asm/irq_vectors.h`
+  - Kernel-side: `int $0x80` entry point in `arch/x86/ia32/ia32entry.S`
+    ```
+    ia32_do_call:
+        IA32_ARG_FIXUP
+        call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
+    ```
+  - Systemcall defined in `arch/x86/syscalls/syscall_32.tbl`
+  - Intel `iret` instruction:
+  > As with a real-address mode interrupt return, the IRET instruction pops the return instruction pointer, return code segment selector, and EFLAGS image from the stack to the EIP, CS, and EFLAGS registers, respectively, and then resumes execution of the interrupted program or procedure.
+
+* 32-bit fast system calls `sysenter/sysexit`
+  - Intel instruction set reference:
+  > Prior to executing the SYSENTER instruction, software must specify the privilege level 0 code segment and code entry point, and the privilege level 0 stack segment and stack pointer by writing values to the following MSRs:
+    >> IA32_SYSENTER_CS (MSR address 174H) — The lower 16 bits of this MSR are the segment selector for the privilege level 0 code segment. This value is also used to determine the segment selector of the privilege level 0 stack segment (see the Operation section). This value cannot indicate a null selector.
+    >> IA32_SYSENTER_EIP (MSR address 176H) — The value of this MSR is loaded into RIP (thus, this value references the first instruction of the selected operating procedure or routine). In protected mode, only bits 31:0 are loaded.
+    >> IA32_SYSENTER_ESP (MSR address 175H) — The value of this MSR is loaded into RSP (thus, this value contains the stack pointer for the privilege level 0 stack). This value cannot represent a non-canonical address. In protected mode, only bits 31:0 are loaded.  
+
+  - Housekeeping work in wrapper function, `__kernel_vsyscall` in `arch/x86/vdso/vdso32/sysenter.S`
+  - Kernel-side: sysenter entry point in `arch/x86/ia32/ia32entry.S`:
+  ```
+  sysenter_dispatch:
+        call    *ia32_sys_call_table(,%rax,8)
+  ```      
+  - Returning from a sysenter system call with sysexit
+    The kernel can use the sysexit instruction to resume execution back to the user program. The caller is expected to put the address to return to into the rdx register, and to put the pointer to the program stack to use in the rcx register.
+  - the assembly code in the section `sysexit_from_sys_call` of `arch/x86/ia32/ia32entry.S`
+
+* 64-bit fast system calls `syscall/sysret`
+  - Intel instruction set reference:
+  > SYSCALL invokes an OS system-call handler at privilege level 0. It does so by loading RIP from the IA32_LSTAR MSR (after saving the address of the instruction following SYSCALL into RCX).
+
+  > User-level applications use as integer registers for passing the sequence %rdi, %rsi, %rdx, %rcx, %r8 and %r9. The kernel interface uses %rdi, %rsi, %rdx, %r10, %r8 and %r9.
+  > A system-call is done via the syscall instruction. The kernel destroys registers %rcx and %r11.
+  > The number of the syscall has to be passed in register %rax.
+  > System-calls are limited to six arguments, no argument is passed directly on the stack.
+  > Returning from the syscall, register %rax contains the result of the system-call. A value in the range between -4095 and -1 indicates an error, it is -errno.
+  > Only values of class INTEGER or class MEMORY are passed to the kernel.
+
+  - Highlight in the Intel instruction set reference: register %rax for syscall number and also the result value; up to 6 input arguments in `%rdi, %rsi, %rdx, %r10, %r8, %r9` registers
+
+  - Kernel-side: syscall entry point
+  ```
+  system_call_fastpath:
+    call *sys_call_table(,%rax,8)
+  ```
+  the syscall table defined in arch/x86/syscalls/syscall_64.tbl
+
+  - Returning from a syscall system call with sysret
+    - the address to where execution should be resume is copied into the rcx register when syscall is used.
+
+* glibc syscall wrapper internals
+  find `__kernel_vsyscall` by searching the ELF auxilliary headers to find a header with type `AT_SYSINFO` which contained the address of `__kernel_vsyscall`.
+
 [Creating a vDSO: the Colonel's Other Chicken](https://www.linuxjournal.com/content/creating-vdso-colonels-other-chicken)
 It is a step-by-step introduction of adding vDSO function to userspace and kernel space, but the code is hard to follow and reading the Linux source code probably can release the magic
 
