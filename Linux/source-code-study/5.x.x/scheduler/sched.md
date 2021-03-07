@@ -304,3 +304,28 @@ context_switch
     switch_to
       // arch dependent code in assembly
 ```
+
+* `sched/wait.c`
+`wait.h`
+```
+struct wait_queue_entry {
+	unsigned int		flags;
+	void			*private;
+	wait_queue_func_t	func;
+	struct list_head	entry;
+};
+
+typedef int (*wait_queue_func_t)(struct wait_queue_entry *wq_entry, unsigned mode, int flags, void *key)
+```		
+
+```
+__wake_up_sync_key
+	__wake_up_common_lock
+		init wait_queue_entry_t bookmark
+		spin_lock_irqsave(&wq_head->lock, flags)
+		__wake_up_common
+			curr = list_first_entry(&wq_head->head, wait_queue_entry_t, entry)
+			list_for_each_entry_safe_from(curr, next, &wq_head->head, entry)
+				curr->func(curr, mode, wake_flags, key)
+
+```
