@@ -76,28 +76,21 @@ void read_lock_bh(rwlock_t *lock);
 ```
 
 * Ambiguous Rules
-> When you create a resource that can be accessed concurrently, you should define which lockwill control that access. Locking should really be laid out at the
-beginning; it can be a hard thing to retrofit in afterward
+> When you create a resource that can be accessed concurrently, you should define which lockwill control that access. Locking should really be laid out at the beginning; it can be a hard thing to retrofit in afterward
 
-> To make your locking work properly, you have to write some functions with the assumption that their caller has already acquired the relevant lock(s). Usually, only
-your internal, static functions can be written in this way; functions called from outside must handle locking explicitly.
+> To make your locking work properly, you have to write some functions with the assumption that their caller has already acquired the relevant lock(s). Usually, only your internal, static functions can be written in this way; functions called from outside must handle locking explicitly.
 
 > when multiple locks must be acquired, they should always be acquired in the same order.
 
-> If you must obtain a lockthat is local to your code (a device lock, say) along with a lock belonging to a more central part of the
-kernel, take your lock first. If you have a combination of semaphores and spinlocks, you must, of course, obtain the semaphore(s) first; calling down (which can sleep)
-while holding a spinlockis a serious error. But most of all, try to avoid situations where you need more than one lock.
+> If you must obtain a lockthat is local to your code (a device lock, say) along with a lock belonging to a more central part of the kernel, take your lock first. If you have a combination of semaphores and spinlocks, you must, of course, obtain the semaphore(s) first; calling down (which can sleep) while holding a spinlockis a serious error. But most of all, try to avoid situations where you need more than one lock.
 
-> As a general rule, you should start with relatively coarse locking unless you have a real reason to believe that contention could be a problem. Resist the urge to
-optimize prematurely; the real performance constraints often show up in unexpected places.
+> As a general rule, you should start with relatively coarse locking unless you have a real reason to believe that contention could be a problem. Resist the urge to optimize prematurely; the real performance constraints often show up in unexpected places.
 
 > If you do suspect that lockcontention is hurting performance, you may find the lockmeter tool useful.
 
 * Lock-Free Algorithms
-  -   circular buffer
-    > When carefully implemented, a circular buffer requires no locking in the absence of multiple producers or consumers. The producer is the only thread that is allowed to
-    modify the write index and the array location it points to. As long as the writer stores a new value into the buffer before updating the write index, the reader will always
-    see a consistent view. The reader, in turn, is the only thread that can access the read index and the value it points to. With a bit of care to ensure that the two pointers do not overrun each other, the producer and the consumer can access the buffer concurrently with no race conditions.
+  - Circular buffer
+    > When carefully implemented, a circular buffer requires no locking in the absence of multiple producers or consumers. The producer is the only thread that is allowed to modify the write index and the array location it points to. As long as the writer stores a new value into the buffer before updating the write index, the reader will always see a consistent view. The reader, in turn, is the only thread that can access the read index and the value it points to. With a bit of care to ensure that the two pointers do not overrun each other, the producer and the consumer can access the buffer concurrently with no race conditions.
 
   - Atomic Variables
     > An atomic_t (linux/types.h) holds an int value on all supported architectures
@@ -106,14 +99,13 @@ optimize prematurely; the real performance constraints often show up in unexpect
 
   - Bit Operations
     > the kernel offers a set of functions that modify or test single bits atomically. Because the whole operation happens in a single step, no interrupt
-    > Atomic bit operations are very fast, since they perform the operation using a single machine instruction without disabling interrupts whenever the underlying platform
-can do that.
+    > Atomic bit operations are very fast, since they perform the operation using a single machine instruction without disabling interrupts whenever the underlying platform can do that.
 
 * Seqlocks
-> Seqlocks work in situations where the resource to be protected is small, simple, and frequently accessed, and where write access is rare but must be fast. Essentially, they workby allowing readers free access to the resource but requiring those readers to check for collisions with writers and, when such a collision happens, retry their access.
+> Seqlocks work in situations where the resource to be protected is small, simple, and frequently accessed, and where write access is rare but must be fast. Essentially, they work by allowing readers free access to the resource but requiring those readers to check for collisions with writers and, when such a collision happens, retry their access.
 
-> Read access works by obtaining an (unsigned) integer sequence value on entry into the critical section. On exit, that sequence value is compared with the current value;
-if there is a mismatch, the read access must be retried.
+> Read access works by obtaining an integer sequence value on entry into the critical section. On exit, that sequence value is compared with the current value; if there is a mismatch, the read access must be retried.
+
 
 ```
 do {
@@ -171,9 +163,9 @@ Pete Zaitcev gives the following summary:
 `spin_trylock()` does not spin but returns non-zero if it acquires the spinlock on the first try or 0 if not
 
 [The Linux Networking Architecture: Design and Implementation of Network Protocols in the Linux Kernel](https://freecomputerbooks.com/The-Linux-Networking-Architecture.html)
-`spin_lock` tries to set the spinlock my_spinlock . If it is not free, then we have to wait or test until it is released. The free spinlock is then set immediately.
+`spin_lock` tries to set the `spinlock my_spinlock` . If it is not free, then we have to wait or test until it is released. The free `spinlock` is then set immediately.
 
-`spin_lock_irqsave` additionally _prevents interrupts_ and _stores the current value of the CPU status register_ in the variable flags.
+`spin_lock_irqsave` additionally _prevents interrupts_ and _stores the current value of the CPU status register_ in the variable flags, (e.g., `cli` and `sti` in x86).
 
 `spin_lock_irq` _does not store the value of the CPU status register_. It assumes that interrupts are already being prevented.
 
@@ -185,3 +177,78 @@ Pete Zaitcev gives the following summary:
 down_write
 
 ```
+
+
+[https://www.kernel.org/doc/html/latest/locking/seqlock.html](https://www.kernel.org/doc/html/latest/locking/seqlock.html)
+* Sequence counters (`seqcount_t`)
+Sequence counters are a reader-writer consistency mechanism with lockless readers (read-only retry loops), and no writer starvation. They are used for data that’s rarely written to, where the reader wants a consistent set of information and is willing to retry if that information changes.
+
+A data set is **consistent** when **the sequence count at the beginning of the read side critical section is even and the same sequence count value is read again at the end of the critical section**. The data in the set **must be copied out inside the read side critical section**. If **the sequence count has changed** between the start and the end of the critical section, **the reader must retry**.
+
+**Writers increment the sequence count at the start and the end of their critical section.**
+
+**A sequence counter write side critical section must never be preempted or interrupted by read side sections**.
+
+**This mechanism cannot be used if the protected data contains pointers, as the writer can invalidate a pointer that the reader is following.**
+
+```
+/* dynamic init */
+seqcount_t foo_seqcount;
+seqcount_init(&foo_seqcount);
+
+/* static init */
+static seqcount_t foo_seqcount = SEQCNT_ZERO(foo_seqcount);
+
+write_seqcount_begin(&foo_seqcount);
+[write-side critical section]
+write_seqcount_end(&foo_seqcount);
+
+do {
+  seq = read_seqcount_begin(&foo_seqcount);
+  [read-side critical section]
+} while (read_seqcount_retry(&foo_seqcount, seq));
+```
+
+* Sequential locks (`seqlock_t`)
+- Init
+  ```
+  /* dynamic */
+  seqlock_t foo_seqlock;
+  seqlock_init(&foo_seqlock);
+
+  /* static */
+  static DEFINE_SEQLOCK(foo_seqlock);
+  ```
+- Writer
+  ```
+  write_seqlock(&foo_seqlock);
+  [write-side critical section]
+  write_sequnlock(&foo_seqlock);
+
+  ```
+- Reader
+  1. Normal Sequence readers which never block a writer but they must retry if a writer is in progress by detecting change in the sequence number. Writers do not wait for a sequence reader:
+  ```
+  do {
+          seq = read_seqbegin(&foo_seqlock);
+
+          /* ... [[read-side critical section]] ... */
+
+  } while (read_seqretry(&foo_seqlock, seq));
+  ```
+  2. Locking readers which will wait if a writer or another locking reader is in progress. A locking reader in progress will also block a writer from entering its critical section.
+  ```
+  read_seqlock_excl(&foo_seqlock);
+  [read-side critical section]
+  read_sequnlock_excl(&foo_seqlock);
+  ```
+
+  3. Conditional lockless reader (as in 1), or locking reader (as in 2), according to a passed marker. In case of lockless reader starvation during writer spike, the lockless read is transformed to a full locking read and no retry loop is necessary.
+  ```
+  int seq = 0;
+  do {
+    read_seqbegin_or_lock(&foo_seqlock, &seq);
+    [read-side critical section]
+  } while (need_seqretry(&foo_seqlock, seq));
+  done_seqretry(&foo_seqlock, seq);
+  ```

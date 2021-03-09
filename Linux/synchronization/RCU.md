@@ -1,3 +1,6 @@
+## RCU
+
+### RCU concepts and internal
 [What is RCU, Fundamentally?](https://lwn.net/Articles/262464/)
 RCU achieves scalability improvements by allowing reads to occur concurrently with updates. In contrast with conventional locking primitives that ensure mutual exclusion among concurrent threads regardless of whether they be readers or updaters, or with reader-writer locks that allow concurrent reads but not in the presence of updates, RCU supports concurrency between a single updater and multiple readers.
 
@@ -22,9 +25,35 @@ Thus, RCU Classic's `synchronize_rcu()` can conceptually be as simple as the fol
 ```  
 Here, `run_on()` switches the current thread to the specified CPU, which forces a context switch on that CPU.
 
+[What is RCU? Part 2: Usage](https://lwn.net/Articles/263130/)
+Advantages of RCU include performance, deadlock immunity, and realtime latency.
+
+Although RCU offers significant performance advantages for read-mostly workloads, one of the primary reasons for creating RCU in the first place was in fact its immunity to read-side deadlocks. This immunity stems from the fact that RCU read-side primitives do not block, spin, or even do backwards branches, so that their execution time is deterministic. It is therefore impossible for them to participate in a deadlock cycle.
+
+An interesting consequence of RCU's read-side deadlock immunity is that it is possible to unconditionally upgrade an RCU reader to an RCU updater. Attempting to do such an upgrade with reader-writer locking results in deadlock.
+
+RCU is susceptible to more subtle priority-inversion scenarios, for example, a high-priority process blocked waiting for an RCU grace period to elapse can be blocked by low-priority RCU readers in -rt kernels. This can be solved by using RCU priority boosting.
+
+Because RCU readers never spin nor block, and because updaters are not subject to any sort of rollback or abort semantics, RCU readers and updaters must necessarily run concurrently.
+
+Because RCU updaters can make changes without waiting for RCU readers to finish, the RCU readers might well see the change more quickly than would batch-fair reader-writer-locking readers
+
+Reader-writer locking and RCU simply provide different guarantees. With reader-writer locking, any reader that begins after the writer starts executing is guaranteed to see new values, and readers that attempt to start while the writer is spinning might or might not see new values, depending on the reader/writer preference of the rwlock implementation in question. In contrast, with RCU, any reader that begins after the updater completes is guaranteed to see new values, and readers that end after the updater begins might or might not see new values, depending on timing.
+
+although reader-writer locking does indeed guarantee consistency within the confines of the computer system, there are situations where this consistency comes at the price of increased inconsistency with the outside world. In other words, reader-writer locking obtains internal consistency at the price of silently stale data with respect to the outside world.
+
+**RCU is a Restricted Reference-Counting Mechanism**
+Overview of Linux-Kernel Reference Counting [PDF].
+
+**RCU is a Bulk Reference-Counting Mechanism**
+RCU's light-weight read-side primitives permit extremely frequent read-side usage with negligible performance degradation, permitting RCU to be used as a "bulk reference-counting" mechanism with little or no performance penalty.
+
+**RCU is a Poor Man's Garbage Collector**
+RCU differs from a GC in that: (1) the programmer must manually indicate when a given data structure is eligible to be collected, and (2) the programmer must manually mark the RCU read-side critical sections where references might legitimately be held.
+
+
 
 [Linux Kernel Doc: What is RCU](https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html)
-### RCU OVERVIEW
 The basic idea behind RCU is to split updates into “removal” and “reclamation” phases. The reason that it is safe to run the removal phase concurrently with readers is the semantics of modern CPUs guarantee that readers will see either the old or the new version of the data structure rather than a partially updated reference. the reclamation phase must not start until readers no longer hold references to those data items. Splitting the update into removal and reclamation phases permits the updater to perform the removal phase immediately, and to defer the reclamation phase until all readers active during the removal phase have completed, either by blocking until they finish or by registering a callback that is invoked after they finish.
 
 So the typical RCU update sequence goes something like the following:
@@ -45,3 +74,68 @@ RCU-based updaters typically take advantage of the fact that writes to single al
 Remove pointers to a data structure, so that subsequent readers cannot gain a reference to it.
 Wait for all previous readers to complete their RCU read-side critical sections.
 At this point, there cannot be any readers who hold references to the data structure, so it now may safely be reclaimed
+
+### RCU APIs
+[RCU API table](https://lwn.net/Articles/419086/)
+
+[RCU part 3: the RCU API](https://lwn.net/Articles/264090/)
+The asynchronous update-side primitive, `call_rcu()`, invokes a specified function with a specified argument after a subsequent grace period. For example, `call_rcu(p,f)`; will result in the RCU callback `f(p)` being invoked after a subsequent grace period.
+
+When it is necessary to wait for all outstanding RCU callbacks to complete. The `rcu_barrier()` primitive does this job.
+
+The `rcu_assign_pointer()` primitive ensures that any prior initialization remains **ordered before the assignment to the pointer on weakly ordered machines**. the `rcu_dereference()` primitive ensures that subsequent code dereferencing the pointer will see the effects of initialization code prior to the corresponding `rcu_assign_pointer()` on Alpha CPUs.
+
+[The RCU API, 2010 Edition](https://lwn.net/Articles/418853/)
+
+
+[The RCU API, 2014 Edition](https://lwn.net/Articles/609904/)
+The new implementation offers much lower-latency grace periods (which was important for KVM), and, unlike other RCU implementations, allows readers in the idle loop and even in offline CPUs.
+
+Another important addition is kfree_rcu(), which allows “fire and forget” freeing of RCU-protected data.
+
+Given a structure p with an `rcu_head` field imaginatively named `rh`, you can now free a structure pointed to by `p` as follows: `kfree_rcu(p, rh)`
+
+A new bitlocked linked list (`hlist_bl_head and hlist_bl_node`) was added. Bitlocked linked lists required the RCU-safe accessors `hlist_bl_for_each_entry_rcu(), hlist_bl_first_rcu(), hlist_bl_add_head_rcu(), hlist_bl_del_rcu(), hlist_bl_del_init_rcu(), and hlist_bl_set_first_rcu()`.
+
+Performance issues in networking led to the addition of `RCU_INIT_POINTER()`, which can be used in place of `rcu_assign_pointer()` in a few special cases, and that omits `rcu_assign_pointer()`'s barrier and volatile cast. Ugly-code issues led to the addition of `RCU_POINTER_INITIALIZER()`, which may be used to initialize RCU-protected pointers in structures at compile time.
+
+TO BE CONTAINED
+
+[The RCU API, 2019 edition](https://lwn.net/Articles/777036/)
+
+### RCU examples
+[Using RCU to Protect Read-Mostly Linked Lists](https://www.kernel.org/doc/html/latest/RCU/listRCU.html)
+- Example 1: Read-mostly list: Deferred Destruction
+```
+write_lock(&tasklist_lock);
+list_del_rcu(&p->tasks);
+write_unlock(&tasklist_lock);
+call_rcu(&p->rcu, delayed_put_task_struct);
+```
+- Example 2: Read-Side Action Taken Outside of Lock: No In-Place Updates
+```
+list_del_rcu(&e->list);
+call_rcu(&e->rcu, audit_free_rule);
+```
+
+- Example 3: Handling In-Place Updates
+```
+ne = kmalloc(sizeof(*entry), GFP_ATOMIC);
+copy_rule(&ne->rule, &e->rule);
+ne->rule.action = newaction;
+list_replace_rcu(&e->list, &ne->list);
+call_rcu(&e->rcu, audit_free_rule);
+```
+
+- Example 4: Eliminating Stale Data
+```
+spin_lock(&e->lock);
+list_del_rcu(&e->list);
+e->deleted = 1;
+spin_unlock(&e->lock);
+call_rcu(&e->rcu, audit_free_rule);
+```
+Q: For the deleted-flag technique to be helpful, why is it necessary to hold the per-entry lock while returning from the search function?
+A: If the search function drops the per-entry lock before returning, then the caller will be processing stale data in any case.
+
+- Example 5: Skipping Stale Objects
