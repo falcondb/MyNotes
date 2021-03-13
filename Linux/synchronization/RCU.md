@@ -75,6 +75,12 @@ Remove pointers to a data structure, so that subsequent readers cannot gain a re
 Wait for all previous readers to complete their RCU read-side critical sections.
 At this point, there cannot be any readers who hold references to the data structure, so it now may safely be reclaimed
 
+[RCU on Wikipedia](https://en.wikipedia.org/wiki/Read-copy-update)
+RCU is in stark contrast with more traditional synchronization primitives such as locking or transactions that coordinate in time, but not in space
+
+Any statement that is not within an RCU read-side critical section is said to be in a _quiescent state_. Any time period during which each thread resides at least once in a quiescent state is called a _grace period_.
+
+
 ### RCU APIs
 [RCU API table](https://lwn.net/Articles/419086/)
 

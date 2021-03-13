@@ -2,13 +2,9 @@
 
 ### Key data structures
 
-### Key functions
 * `linux/types.h`
 ```
 /**
- * struct callback_head - callback structure for use with RCU and task_work
- * @next: next update requests in a list
- * @func: actual update function to call after the grace period.
  *
  * The struct is aligned to size of pointer. On most architectures it happens
  * naturally due ABI requirements, but some architectures (like CRIS) have
@@ -31,6 +27,129 @@ struct callback_head {
 #define rcu_head callback_head
 ```
 
+* `rcupdate_wait.h`
+```
+struct rcu_synchronize {
+	struct rcu_head head;
+	struct completion completion;  // for the GP synchronization
+};
+```
+
+* `tree.h`
+```
+
+struct rcu_data {
+
+}
+```
+
+
+#### RCU interfaces
+* `rcu_read_lock` in rcupdate.h
+```
+rcu_read_lock
+  __rcu_read_lock
+    preempt_disable
+```
+```
+rcu_read_unlock
+  __rcu_read_unlock
+    preempt_enable  
+```
+* `tree.c`
+```
+synchronize_rcu(void)
+	if rcu_blocking_is_gp
+      might_sleep
+      preempt_disable
+      ret = num_online_cpus() <= 1
+      preempt_enable
+		return
+	if rcu_gp_is_expedited
+		synchronize_rcu_expedited
+
+  /* wait for GP has been elapsed
+  else
+		wait_rcu_gp(call_rcu)   // rcupdate_wait.h
+      _wait_rcu_gp          // rcupdate_wait.h
+        call_rcu_func_t __crcu_array[] = { call_rcu }
+        struct rcu_synchronize __rs_array[ARRAY_SIZE(__crcu_array)]
+
+        __wait_rcu_gp(checktiny, ARRAY_SIZE(__crcu_array), __crcu_array, __rs_array)
+          for i in ARRAY_SIZE(__crcu_array)
+            init_completion(&rs_array[i].completion)
+            (crcu_array[i])(&rs_array[i].head, wakeme_after_rcu)    // crcu_array[i] should be call_rcu
+
+            wait_for_completion(&rs_array[i].completion)  
+```
+
+```
+wakeme_after_rcu(struct rcu_head *head)
+	rcu = container_of(head, struct rcu_synchronize, head)
+	complete(&rcu->completion)
+```
+
+```
+call_rcu  ==> __call_rcu(head, func, 0)
+
+```
+
+```
+__call_rcu
+
+```
+
+
+### Tree RCU
+* `kernel/rcu/tree.c`
+```
+__init rcu_init
+  for_each_online_cpu
+    rcutree_prepare_cpu
+    rcu_cpu_starting
+    rcutree_online_cpu
+
+  alloc_workqueue("rcu_gp", WQ_MEM_RECLAIM, 0)
+  alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0)
+  srcu_init  
+```
+
+### RCU update.c
+#### rcupdate.h
+```
+#define rcu_assign_pointer(p, v)					      \
+({									      \
+	uintptr_t _r_a_p__v = (uintptr_t)(v);				      \
+									      \
+	if (__builtin_constant_p(v) && (_r_a_p__v) == (uintptr_t)NULL)	      \
+		WRITE_ONCE((p), (typeof(p))(_r_a_p__v));		      \
+	else								      \
+		smp_store_release(&p, RCU_INITIALIZER((typeof(p))_r_a_p__v)); \
+	_r_a_p__v;							      \
+})
+
+```
+
+#### update.c
+```
+__init rcu_spawn_tasks_kthread
+	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
+	smp_mb(); /* Ensure others see full kthread. */
+	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
+
+core_initcall(rcu_spawn_tasks_kthread);
+```
+Create a *kthread* with function `rcu_tasks_kthread`
+
+```
+rcu_tasks_kthread
+
+```
+
+
+
+### Tiny RCU, uniprocessor-only
+[rcu: Add a TINY_PREEMPT_RCU](https://lwn.net/Articles/396767/)
 * `kernel/rcu/tiny.c`
 ```
 struct rcu_ctrlblk {
@@ -47,6 +166,7 @@ static struct rcu_ctrlblk rcu_ctrlblk = {
 ```
 #### Initialization
 * `kernel/rcu/tiny.c`
+register a *softirq* with a function `rcu_process_callbacks`
 ```
 __init rcu_init
   open_softirq(RCU_SOFTIRQ, rcu_process_callbacks)
@@ -67,10 +187,9 @@ rcu_process_callbacks
 		__rcu_reclaim("", list)
 		local_bh_enable
 ```
-
+Split the `rcucblist` from `donetail` and reset `rcucblist` to where `donetail` pointing is.
+Call `__rcu_reclaim` on every `callback_head` in the splited list before `donetail`.
 ```
-__rcu_reclaim
-
 /*
  * Reclaim the specified callback, either by invoking it (non-lazy case)
  * or freeing it directly (lazy case).  Return true if lazy, false otherwise.
@@ -92,6 +211,7 @@ call_rcu(struct rcu_head *head, rcu_callback_t func)
   /* force scheduling for rcu_qs() if current thread is idle*/
   resched_cpu(0)
 ```
+Populate the `struct rcu_head` pointed by `head`, add it to the current tail of the callback list `rcucblist`.  `rcu_ctrlblk.curtail` is the pointer pointing to the address of the next of current tail list.
 
 ```
 /* Record an rcu quiescent state.  */
@@ -101,65 +221,15 @@ rcu_qs
     rcu_ctrlblk.donetail = rcu_ctrlblk.curtail
     raise_softirq_irqoff(RCU_SOFTIRQ)             // enable RCU softirq
 ```
-
-* `kernel/rcu/tree.c`
-```
-__init rcu_init
-  for_each_online_cpu
-    rcutree_prepare_cpu
-    rcu_cpu_starting
-    rcutree_online_cpu
-
-  alloc_workqueue("rcu_gp", WQ_MEM_RECLAIM, 0)
-  alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0)
-  srcu_init  
-```
-
-#### rcupdate.h
-```
-/**
- * rcu_assign_pointer() - assign to RCU-protected pointer
- * @p: pointer to assign to
- * @v: value to assign (publish)
- *
- * Assigns the specified value to the specified RCU-protected
- * pointer, ensuring that any concurrent RCU readers will see
- * any prior initialization.
- *
- * Inserts memory barriers on architectures that require them
- * (which is most of them), and also prevents the compiler from
- * reordering the code that initializes the structure after the pointer
- * assignment.  More importantly, this call documents which pointers
- * will be dereferenced by RCU read-side code.
- *
- * In some special cases, you may use RCU_INIT_POINTER() instead
- * of rcu_assign_pointer().  RCU_INIT_POINTER() is a bit faster due
- * to the fact that it does not constrain either the CPU or the compiler.
- * That said, using RCU_INIT_POINTER() when you should have used
- * rcu_assign_pointer() is a very bad thing that results in
- * impossible-to-diagnose memory corruption.  So please be careful.
- * See the RCU_INIT_POINTER() comment header for details.
- *
- * Note that rcu_assign_pointer() evaluates each of its arguments only
- * once, appearances notwithstanding.  One of the "extra" evaluations
- * is in typeof() and the other visible only to sparse (__CHECKER__),
- * neither of which actually execute the argument.  As with most cpp
- * macros, this execute-arguments-only-once property is important, so
- * please be careful when making changes to rcu_assign_pointer() and the
- * other macros that it invokes.
- */
-#define rcu_assign_pointer(p, v)					      \
-({									      \
-	uintptr_t _r_a_p__v = (uintptr_t)(v);				      \
-									      \
-	if (__builtin_constant_p(v) && (_r_a_p__v) == (uintptr_t)NULL)	      \
-		WRITE_ONCE((p), (typeof(p))(_r_a_p__v));		      \
-	else								      \
-		smp_store_release(&p, RCU_INITIALIZER((typeof(p))_r_a_p__v)); \
-	_r_a_p__v;							      \
-})
+`donetail` jumps to `curtail` and raise softirq `RCU_SOFTIRQ`.
 
 ```
+rcu_barrier
+  wait_rcu_gp
+
+```
+
+
 
 #### SRCU
 Sleepable Read-Copy Update mechanism for mutual exclusion, tiny version for non-preemptible single-CPU use
