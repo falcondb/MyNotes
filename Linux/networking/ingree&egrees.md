@@ -1,5 +1,8 @@
 ## Network package processing
 ### ingress
+Key steps in ingress path
+  - NIC receives a frame from wire, _DMA_ to memory, raise a hardware interrupt, hardware interrupt handler in device driver adds the frame to device's `input_pkt_queue`, and the device to `poll_list` of the percpu `softnet_data`. The `poll_list` includes the devices with pending received frames. The driver raises SoftIRQ with handler `net_rx_action`. `net_rx_action` goes through the devices in `poll_list` and calls `napi_poll` on the device. `napi_poll` then calls the poll function registered with the device. The poll function is on the driver side and it eventually calls `netif_receive_skb`, which starts to process the frame. `netif_receive_skb` may enqueue the frame to a different CPU's `softnet_data` through _RPS(Receive Packet Steering see below)_, otherwise, calls `__netif_receive_skb ==> __netif_receive_skb_one_core ==> __netif_receive_skb_core`. `__netif_receive_skb_core` handles _frame taps_, _CONFIG_NET_INGRESS_, for _VLAN_, gets the device from _VLAN ID_ and pull out the _VLAN_ header from _SKB_, then calls `deliver_skb`. `deliver_skb` calls the network protocol's handlers, e.g., `ip_rcv` for IPv4 package.
+
 [Monitoring and Tuning the Linux Networking Stack: Receiving Data](https://blog.packagecloud.io/eng/2016/06/22/monitoring-tuning-linux-networking-stack-receiving-data/)
 
 _Register an interrupt handler_
@@ -9,7 +12,7 @@ _SoftIRQs_
 The softirq system in the Linux kernel is a mechanism for executing code outside of the context of an interrupt handler implemented in a driver.
 The softirq system can be imagined as a series of kernel threads that run handler functions which have been registered for different softirq events.
 
-_Generic Receive Offloading (GRO)_
+_Generic Receive Offloading (GRO)_interrupt.md
 Generic Receive Offloading (GRO) is a software implementation of a hardware optimization that is known as Large Receive Offloading (LRO). The main idea behind both methods is that reducing the number of packets passed up the network stack by combining “similar enough” packets together can reduce CPU usage. GRO was introduced as an implementation of LRO in software, but with more strict rules around which packets can be coalesced.
 
 A list of GRO offload filters is traversed to allow the higher level protocol stacks to act on a piece of data which is being considered for GRO. This is done so that the protocol layers can let the network device layer know if this packet is part of a network flow that is currently being receive offloaded and handle anything protocol specific that should happen for GRO.
@@ -32,6 +35,19 @@ if you have numerous or very complex netfilter or iptables rules, those rules wi
 
 
 ### egress
+Key steps in egress path
+  - Create a socket with address family (`AF_INET, AF_INET6`), socket type (`SOCK_STREAM, SOCK_DGRAM, SOCK_RAW`) and protocol (`IPPROTO_TCP, IPPROTO_UDP, IPPROTO_RAW`). In kernel, handlers for address families are registered at `struct proto_ops` and `struct proto` in `struct inet_protosw inetsw_array[]`.
+  - Switch to kernel model from system call, take _UDP_ as an example of transport layer (_TCP_ and _SCTP_ works on a lot on fragmentation, thus, less work for network layer, e.g., _TCP_ calls `dst_output`, `ip_queue_xmit` directly). The system call for UDP is `sock_sendmsg`, which calls `security_socket_sendmsg` or `sock_sendmsg_nosec ==> sock->ops->sendmsg`. For `SOCK_DGRAM`, `inet_sendmsg` is registered as `sendmsg`. `sendmsg` just calls `sk->sk_prot->sendmsg`, which points to `udp_sendmsg` for `IPPROTO_UDP`.
+  - In `udp_sendmsg`, accumulating more messages and calls `ip_append_data` for _UDP corking_ (refer to _Understand Linux Network Internals_). Next handling socket control message, IP options (SRR and TOS), Multicast, DST cache check, ARP cache confirm. Non corking, `ip_make_skb` and `udp_send_skb`; corking case, `ip_append_data` and `udp_flush_pending_frames ==> udp_flush_pending_frames; udp_send_skb` (refer to _Understand Linux Network Internals_).
+  - `udp_send_skb` handles _GSO_, _UDPLITE_, adds checksum in transport header, then calls `ip_send_skb`.
+  - `ip_send_skb ==> ip_local_out ==> __ip_local_out`,  `__ip_local_out` makes a _netfilter_ hook call, `nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT,..., dst_output)`.
+  - `skb_dst(skb)->output` points to `ip_output` or `ip_mc_output`. `ip_output` makes another _netfilter_ hook call, `NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING,..., ip_finish_output)`. `ip_mc_output` makes a _netfilter_ hook call, `NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING,ip_mc_finish_output)` or `NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING,..., ip_finish_output)`.
+  - `ip_finish_output` runs `BPF_CGROUP_RUN_PROG_INET_EGRESS`, then `__ip_finish_output`, which first handles _XFRM_ policy, _GSO_ (`ip_finish_output_gso`), `ip_fragment` if necessary, or `ip_finish_output2`.
+  - `ip_finish_output2` calls `ip_neigh_for_gw`, which looks up the neighbour cache or quries neighbour table, then `neigh_output`.
+  - `neigh_output` calls `neigh_hh_output` using neighbour cache with the link layer header or the slow route `struct neighbour.output`
+  - `struct neighbour.output` can be set to different handlers, `neigh_direct_output`, `neigh_resolve_output` according to destination state (_NUD_). Eventually, they will call `dev_queue_xmit`
+
+  - OK, entering _TC_ and Link layer from `dev_queue_xmit`. For non soft-device, `netdev_core_pick_tx ==> __dev_xmit_skb`
 [Monitoring and Tuning the Linux Networking Stack: Sending Data](https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/)
 
 _IP Layer_

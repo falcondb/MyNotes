@@ -27,6 +27,15 @@
 It is a step-by-step introduction of adding vDSO function to userspace and kernel space, but the code is hard to follow and reading the Linux source code probably can release the magic
 
 [On vsyscalls and the vDSO](https://lwn.net/Articles/446528/)
+The _vsyscall_ and _vDSO_ segments are two mechanisms used to accelerate certain system calls in Linux. Recently _vsyscall_ has come to be seen as an enabler of security attacks, so some patches have been put together to phase it out.
+
+The _vsyscall_ area is the older of these two mechanisms. It was added as a way to execute specific system calls which do not need any real level of privilege to run. The classic example is `gettimeofday()`, the kernel allows the page containing the current time to be mapped read-only into user space; that page also contains a fast `gettimeofday()` implementation.
+
+_Vsyscall_ has some limitations; among other things, there is only space for a handful of virtual system calls. As those limitations were hit, the kernel developers introduced the more flexible vDSO implementation.
+
+Note that the vDSO area has moved, while the vsyscall page remains at the same location. The location of the vsyscall page is nailed down in the kernel ABI, but the vDSO area - like most other areas in the user-space memory layout - has its location randomized every time it is mapped.
+
+Andrew Lutomirski's patches for static vsyscall page and this discussion on the patches and the configuration naming issue.
 
 ## KASLR
 [Kernel address space layout randomization](https://lwn.net/Articles/569635/)
