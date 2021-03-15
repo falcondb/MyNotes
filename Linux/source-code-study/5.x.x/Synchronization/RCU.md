@@ -82,6 +82,46 @@ struct rcu_data {
 }
 ```
 
+```
+/*
+ * RCU global state, including node hierarchy.  This hierarchy is
+ * represented in "heap" form in a dense array.  The root (first level)
+ * of the hierarchy is in ->node[0] (referenced by ->level[0]), the second
+ * level in ->node[1] through ->node[m] (->node[1] referenced by ->level[1]),
+ * and the third level in ->node[m+1] and following (->node[m+1] referenced
+ * by ->level[2]).  The number of levels is determined by the number of
+ * CPUs and by CONFIG_RCU_FANOUT.  Small systems will have a "hierarchy"
+ * consisting of a single rcu_node.
+ */
+struct rcu_state {
+	struct rcu_node node[NUM_RCU_NODES];	/* Hierarchy. */
+	struct rcu_node *level[RCU_NUM_LVLS + 1];
+						/* Hierarchy levels (+1 to */
+						/*  shut bogus gcc warning) */
+	int ncpus;				/* # CPUs seen so far. */
+
+	/* The following fields are guarded by the root rcu_node's lock. */
+
+	u8	boost ____cacheline_internodealigned_in_smp;
+						/* Subject to priority boost. */
+	unsigned long gp_seq;			/* Grace-period sequence #. */
+	struct task_struct *gp_kthread;		/* Task for grace periods. */
+	struct swait_queue_head gp_wq;		/* Where GP task waits. */
+	short gp_flags;				/* Commands for GP task. */
+	short gp_state;				/* GP kthread sleep state. */
+
+	/* End of fields guarded by root rcu_node's lock. */
+
+	struct mutex barrier_mutex;		/* Guards barrier fields. */
+	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
+	struct completion barrier_completion;	/* Wake at barrier end. */
+	unsigned long barrier_sequence;		/* ++ at start and end of */
+
+  ...
+}
+
+```
+
 * `rcu_segcblist.h`
 ```
 /* Complicated segmented callback lists.  ;-) */
@@ -235,6 +275,7 @@ rcu_segcblist_advance
 ```
 
 ### Tree RCU
+Refer the _RCU data structure_ section in note _RCU.md_.
 * `kernel/rcu/tree.c`
 ```
 __init rcu_init

@@ -146,6 +146,19 @@ A: If the search function drops the per-entry lock before returning, then the ca
 
 - Example 5: Skipping Stale Objects
 
+
+### RCU data structure
 [RCU's major data structures](https://www.kernel.org/doc/Documentation/RCU/Design/Data-Structures/Data-Structures.html)
+Each leaf node of the rcu_node tree has up to 16 rcu_data structures associated with it, so that there are NR_CPUS number of rcu_data structures, one for each possible CPU.
+
+The purpose of this combining tree is to allow per-CPU events such as quiescent states, dyntick-idle transitions, and CPU hotplug operations to be processed efficiently and scalably.
+
+Quiescent states are recorded by the per-CPU rcu_data structures, and other events are recorded by the leaf-level rcu_node structures.
+
+All of these events are combined at each level of the tree until finally grace periods are completed at the tree's root rcu_node structure. A grace period can be completed at the root once every CPU has passed through a quiescent state. Once a grace period has completed, record of that fact is propagated back down the tree.
+
+In effect, the combining tree acts like a big shock absorber, keeping lock contention under control at all tree levels regardless of the level of loading on the system.
+
+
 
 [Verification of the Tree-Based Hierarchical Read-Copy Update in the Linux Kernel](https://arxiv.org/pdf/1610.03052.pdf)
