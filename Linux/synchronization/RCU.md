@@ -187,6 +187,63 @@ All of these events are combined at each level of the tree until finally grace p
 
 In effect, the combining tree acts like a big shock absorber, keeping lock contention under control at all tree levels regardless of the level of loading on the system.
 
+Each of the data structures (`rcu_state, rcu_node & rcu_data`) has its own synchronization:
+  - Each `rcu_state` structures has a lock and a mutex, and some fields are protected by the corresponding root `rcu_node` structure's lock.
+  - Each `rcu_node` structure has a spinlock.
+  - The fields in `rcu_data` are private to the corresponding CPU, although a few can be read and written by other CPUs.
+
+The general role of each of these data structures is as follows:
+  - `rcu_state`: This structure forms the interconnection between the rcu_node and rcu_data structures, tracks grace periods, serves as short-term repository for callbacks orphaned by CPU-hotplug events, maintains rcu_barrier() state, tracks expedited grace-period state, and maintains state used to force quiescent states when grace periods extend too long,
+  - `rcu_node`: This structure forms the combining tree that propagates quiescent-state information from the leaves to the root, and also propagates grace-period information from the root to the leaves. It provides local copies of the grace-period state in order to allow this information to be accessed in a synchronized manner without suffering the scalability limitations that would otherwise be imposed by global locking. In CONFIG_PREEMPT_RCU kernels, it manages the lists of tasks that have blocked while in their current RCU read-side critical section. In CONFIG_PREEMPT_RCU with CONFIG_RCU_BOOST, it manages the per-rcu_node priority-boosting kernel threads (kthreads) and state. Finally, it records CPU-hotplug state in order to determine which CPUs should be ignored during a given grace period.
+  - `rcu_data`: This per-CPU structure is the focus of quiescent-state detection and RCU callback queuing. It also tracks its relationship to the corresponding leaf rcu_node structure to allow more-efficient propagation of quiescent states up the rcu_node combining tree. Like the rcu_node structure, it provides a local copy of the grace-period information to allow for-free synchronized access to this information from the corresponding CPU. Finally, this structure records past dyntick-idle state for the corresponding CPU and also tracks statistics.
+  - `rcu_head`: This structure represents RCU callbacks, and is the only structure allocated and managed by RCU users. The rcu_head structure is normally embedded within the RCU-protected data structure.
+
+#### rcu_state
+The rcu_node tree is embedded into the `->node[]` array
+RCU grace periods are numbered, and the `->gp_seq` field contains the current grace-period sequence number. The bottom two bits are the state of the current grace period, which can be zero for not yet started or one for in progress. This field is protected by the root rcu_node structure's `->lock` field.
+
+There are `->gp_seq` fields in the rcu_node and rcu_data structures as well. The fields in the rcu_state structure represent the most current value, and those of the other structures are compared in order to detect the beginnings and ends of grace periods in a distributed fashion. The values flow from rcu_state to rcu_node to rcu_data.
+
+#### rcu_node
+
+The rcu_node structures' `->gp_seq` fields are the counterparts of the field of the same name in the rcu_state structure. They each may lag up to one step behind their rcu_state counterpart. If the bottom two bits of a given rcu_node structure's `->gp_seq` field is zero, then this rcu_node structure believes that RCU is idle.
+
+The `->gp_seq` field of each rcu_node structure is updated at the beginning and the end of each grace period.
+
+The `->gp_seq_needed` fields record the furthest-in-the-future grace period request seen by the corresponding rcu_node structure. The request is considered fulfilled when the value of the `->gp_seq` field equals or exceeds that of the `->gp_seq_needed` field.
+
+The `->qsmask` field tracks which of this rcu_node structure's children still need to report quiescent states for the current normal grace period. Such children will have a value of 1 in their corresponding bit. Note that the leaf rcu_node structures should be thought of as having rcu_data structures as their children. Similarly, the `->expmask` field tracks which of this rcu_node structure's children still need to report quiescent states for the current expedited grace period. An expedited grace period has the same conceptual properties as a normal grace period, but the expedited implementation accepts extreme CPU overhead to obtain much lower grace-period latency, for example, consuming a few tens of microseconds worth of CPU time to reduce grace-period duration from milliseconds to tens of microseconds. The `->qsmaskinit` field tracks which of this rcu_node structure's children cover for at least one online CPU.
+
+The `->blkd_tasks` field is a list header for the list of blocked and preempted tasks. As tasks undergo context switches within RCU read-side critical sections, their task_struct structures are enqueued (via the task_struct's `->rcu_node_entry` field) onto the head of the `->blkd_tasks` list for the leaf rcu_node structure corresponding to the CPU on which the outgoing context switch executed. As these tasks later exit their RCU read-side critical sections, they remove themselves from the list.
+
+#### rcu_segcblist
+The segments are as follows:
+  - _RCU_DONE_TAIL_: Callbacks whose grace periods have elapsed. These callbacks are ready to be invoked.
+  - _RCU_WAIT_TAIL_: Callbacks that are waiting for the current grace period. Note that different CPUs can have different ideas about which grace period is current, hence the `->gp_seq` field.
+  - _RCU_NEXT_READY_TAIL_: Callbacks waiting for the next grace period to start.
+  - _RCU_NEXT_TAIL_: Callbacks that have not yet been associated with a grace period.
+
+The `->head` pointer references the first callback or is NULL if the list contains no callbacks (which is not the same as being empty). Each element of the `->tails[]` array references the ->next pointer of the last callback in the corresponding segment of the list, or the list's `->head` pointer if that segment and all previous segments are empty. If the corresponding segment is empty but some previous segment is not empty, then the array element is identical to its predecessor. Older callbacks are closer to the head of the list, and new callbacks are added at the tail.
+
+The `->gp_seq[]` array records grace-period numbers corresponding to the list segments. This is what allows different CPUs to have different ideas as to which is the current grace period while still avoiding premature invocation of their callbacks. In particular, this allows CPUs that go idle for extended periods to determine which of their callbacks are ready to be invoked after reawakening.
+
+#### rcu_data
+The `->grpmask` field indicates the bit in the `->mynode->qsmask` corresponding to this rcu_data structure, and is also used when propagating quiescent states.
+
+The `->gp_seq field` is the counterpart of the field of the same name in the rcu_state and rcu_node structures. The `->gp_seq_needed` field is the counterpart of the field of the same name in the rcu_node structure. They may each lag up to one behind their rcu_node counterparts, but in `CONFIG_NO_HZ_IDLE and CONFIG_NO_HZ_FULL` kernels can lag arbitrarily far behind for CPUs in dyntick-idle mode
+
+The `->cpu_no_qs` flag indicates that the CPU has not yet passed through a quiescent state, while the `->core_needs_qs` flag indicates that the RCU core needs a quiescent state from the corresponding CPU.
+
+In the absence of CPU-hotplug events, RCU callbacks are invoked by the same CPU that registered them.
+
+The CPU advances the callbacks in its rcu_data structure whenever it notices that another RCU grace period has completed. The CPU detects the completion of an RCU grace period by noticing that the value of its rcu_data structure's `->gp_seq` field differs from that of its leaf rcu_node structure. Recall that each rcu_node structure's `->gp_seq` field is updated at the beginnings and ends of each grace period.
+
+#### Dyntick-Idle Handling
+TO BE STUDIED
+
+#### rcu_head
+The `->next` field is used to link the rcu_head structures together in the lists within the rcu_data structures. The `->func` field is a pointer to the function to be called when the callback is ready to be invoked, and this function is passed a pointer to the rcu_head structure. However, `kfree_rcu()` uses the ->func field to record the offset of the rcu_head structure within the enclosing RCU-protected data structure.
+
 
 
 [Verification of the Tree-Based Hierarchical Read-Copy Update in the Linux Kernel](https://arxiv.org/pdf/1610.03052.pdf)
