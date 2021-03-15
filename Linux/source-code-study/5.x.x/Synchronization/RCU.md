@@ -37,10 +37,97 @@ struct rcu_synchronize {
 
 * `tree.h`
 ```
+/*
+ * Definition for node within the RCU grace-period-detection hierarchy.
+ */
+struct rcu_node {
+  raw_spinlock_t __private lock;	/* Root rcu_node's lock protects */
+  unsigned long gp_seq;	/* Track rsp->rcu_gp_seq. */
+  unsigned long gp_seq_needed; /* Track furthest future GP request. */
+  unsigned long completedqs; /* All QSes done for this node. */
+  ...
+  struct rcu_node *parent;
+  ...
+}  
+```    
 
+```
+/* Per-CPU data for read-copy update. */
 struct rcu_data {
+  /* 1) quiescent-state and grace-period handling : */
+  unsigned long	gp_seq;		/* Track rsp->rcu_gp_seq counter. */
+  unsigned long	gp_seq_needed;	/* Track furthest future GP request. */
+  ...
+  struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
+  ...
+  unsigned long	ticks_this_gp;	/* The number of scheduling-clock ticks this CPU has handled during and after the last grace period it is aware of. */
 
+  /* 2) batch handling */
+  struct rcu_segcblist cblist;
+
+  /* 3) dynticks interface. */
+  ...
+
+  /* 4) rcu_barrier(), OOM callbacks, and expediting. */
+  struct rcu_head barrier_head;
+  int exp_dynticks_snap;		/* Double-check need for IPI. */
+
+  /* 5) Callback offloading. */
+  ...
+
+  /* 6) Diagnostic data, including RCU CPU stall warnings. */
+  ...
+
+  int cpu;
 }
+```
+
+* `rcu_segcblist.h`
+```
+/* Complicated segmented callback lists.  ;-) */
+
+/*
+ * Index values for segments in rcu_segcblist structure.
+ *
+ * The segments are as follows:
+ *
+ * [head, *tails[RCU_DONE_TAIL]):
+ *	Callbacks whose grace period has elapsed, and thus can be invoked.
+ * [*tails[RCU_DONE_TAIL], *tails[RCU_WAIT_TAIL]):
+ *	Callbacks waiting for the current GP from the current CPU's viewpoint.
+ * [*tails[RCU_WAIT_TAIL], *tails[RCU_NEXT_READY_TAIL]):
+ *	Callbacks that arrived before the next GP started, again from
+ *	the current CPU's viewpoint.  These can be handled by the next GP.
+ * [*tails[RCU_NEXT_READY_TAIL], *tails[RCU_NEXT_TAIL]):
+ *	Callbacks that might have arrived after the next GP started.
+ *	There is some uncertainty as to when a given GP starts and
+ *	ends, but a CPU knows the exact times if it is the one starting
+ *	or ending the GP.  Other CPUs know that the previous GP ends
+ *	before the next one starts.
+ *
+ * Note that RCU_WAIT_TAIL cannot be empty unless RCU_NEXT_READY_TAIL is also
+ * empty.
+ *
+ * The ->gp_seq[] array contains the grace-period number at which the
+ * corresponding segment of callbacks will be ready to invoke.  A given
+ * element of this array is meaningful only when the corresponding segment
+ * is non-empty, and it is never valid for RCU_DONE_TAIL (whose callbacks
+ * are already ready to invoke) or for RCU_NEXT_TAIL (whose callbacks have
+ * not yet been assigned a grace-period number).
+ */
+#define RCU_DONE_TAIL		0	/* Also RCU_WAIT head. */
+#define RCU_WAIT_TAIL		1	/* Also RCU_NEXT_READY head. */
+#define RCU_NEXT_READY_TAIL	2	/* Also RCU_NEXT head. */
+#define RCU_NEXT_TAIL		3
+#define RCU_CBLIST_NSEGS	4
+
+struct rcu_segcblist {
+	struct rcu_head *head;
+	struct rcu_head **tails[RCU_CBLIST_NSEGS];
+	unsigned long gp_seq[RCU_CBLIST_NSEGS];
+	long len;
+	long len_lazy;
+};
 ```
 
 
@@ -96,9 +183,56 @@ call_rcu  ==> __call_rcu(head, func, 0)
 
 ```
 __call_rcu
+  rcu_segcblist_enqueue
+
+  __call_rcu_core
+  note_gp_changes
+
 
 ```
 
+```
+note_gp_changes
+  needwake = __note_gp_changes
+  if needwake
+		rcu_gp_kthread_wake
+
+```
+
+```
+/*
+ * Update CPU-local rcu_data state to record the beginnings and ends of
+ * grace periods.  The caller must hold the ->lock of the leaf rcu_node
+ * structure corresponding to the current CPU, and must have irqs disabled.
+ */
+__note_gp_changes
+  /* Handle the ends of any preceding grace periods first. */
+    if rcu_seq_completed_gp(rdp->gp_seq, rnp->gp_seq) ==> ULONG_CMP_LT(old, new & ~RCU_SEQ_STATE_MASK)  ==> ULONG_MAX / 2 < (a) - (b)
+    rcu_advance_cbs
+      rcu_segcblist_advance(&rdp->cblist, rnp->gp_seq)  // see section rcu_segcblist.c
+
+      rcu_accelerate_cbs
+  else
+    rcu_accelerate_cbs
+
+  /* Now handle the beginnings of any new-to-this-CPU grace periods. */  
+  if (rcu_seq_new_gp(rdp->gp_seq, rnp->gp_seq)
+    need_gp = !!(rnp->qsmask & rdp->grpmask)
+    rdp->cpu_no_qs.b.norm = need_gp
+    rdp->core_needs_qs = need_gp
+    zero_cpu_stall_ticks(rdp)
+
+  rdp->gp_seq = rnp->gp_seq
+
+  rcu_gpnum_ovf  
+```
+
+### `rcu_segcblist.c`
+```
+rcu_segcblist_advance
+
+
+```
 
 ### Tree RCU
 * `kernel/rcu/tree.c`

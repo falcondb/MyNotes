@@ -145,3 +145,7 @@ Q: For the deleted-flag technique to be helpful, why is it necessary to hold the
 A: If the search function drops the per-entry lock before returning, then the caller will be processing stale data in any case.
 
 - Example 5: Skipping Stale Objects
+
+[RCU's major data structures](https://www.kernel.org/doc/Documentation/RCU/Design/Data-Structures/Data-Structures.html)
+
+[Verification of the Tree-Based Hierarchical Read-Copy Update in the Linux Kernel](https://arxiv.org/pdf/1610.03052.pdf)
