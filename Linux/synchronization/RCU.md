@@ -230,7 +230,7 @@ The `->gp_seq[]` array records grace-period numbers corresponding to the list se
 #### rcu_data
 The `->grpmask` field indicates the bit in the `->mynode->qsmask` corresponding to this rcu_data structure, and is also used when propagating quiescent states.
 
-The `->gp_seq field` is the counterpart of the field of the same name in the rcu_state and rcu_node structures. The `->gp_seq_needed` field is the counterpart of the field of the same name in the rcu_node structure. They may each lag up to one behind their rcu_node counterparts, but in `CONFIG_NO_HZ_IDLE and CONFIG_NO_HZ_FULL` kernels can lag arbitrarily far behind for CPUs in dyntick-idle mode
+The `->gp_seq` field is the counterpart of the field of the same name in the rcu_state and rcu_node structures. The `->gp_seq_needed` field is the counterpart of the field of the same name in the rcu_node structure. They may each lag up to one behind their rcu_node counterparts, but in `CONFIG_NO_HZ_IDLE and CONFIG_NO_HZ_FULL` kernels can lag arbitrarily far behind for CPUs in dyntick-idle mode
 
 The `->cpu_no_qs` flag indicates that the CPU has not yet passed through a quiescent state, while the `->core_needs_qs` flag indicates that the RCU core needs a quiescent state from the corresponding CPU.
 
@@ -247,3 +247,46 @@ The `->next` field is used to link the rcu_head structures together in the lists
 
 
 [Verification of the Tree-Based Hierarchical Read-Copy Update in the Linux Kernel](https://arxiv.org/pdf/1610.03052.pdf)
+The number of readers can be large (up to the number of CPUs in non-preemptible implementations and up to the number of tasks in preemptible implementations).
+
+When a CPU is blocking, in the idle loop, or running in user mode, all RCU read-side critical sections that were previously running on that CPU
+must have finished. Each of these states is therefore called a quiescent state. After each CPU has passed through a quiescent state, the corresponding RCU grace period ends.
+
+Tree RCU therefore instead uses a tree hierarchy of data structures, each leaf of which records quiescent states of a single CPU and propagates the information up to the root. When the root is reached, a grace period has ended. Then the grace-period information is propagated down from the root to the leaves
+of the tree. Shortly after the leaf data structure of a CPU receives this information, synchronize rcu() will return.
+
+* rcu_state
+The `->gpnum` field records **the most recently started grace period**, whereas `->completed` records **the most recently ended grace period**. If the two numbers are equal, then corresponding flavor of RCU is idle. If gpnum is one greater than completed, then RCU is in the middle of a grace period. All other combinations are invalid.
+
+* rcu_node
+The `->qsmask` field indicates which of this node’s children still need to report quiescent states for the current grace period. As with rcu state, the rcu node structure has `->gpnum and ->completed` fields that have values identical to those of the enclosing rcu state structure, except at the beginnings and ends of grace periods when the new values are propagated down the tree. Each of these fields can be smaller than its rcu state counterpart by at most one.
+
+* rcu_data
+The rcu data structure detects quiescent states and handles RCU callbacks for the corresponding CPU.
+
+The rcu data structure’s `->qs_pending` field indicates that RCU **needs a quiescent state** from the corresponding CPU, and the `->passed_quiesce` indicates that the CPU has already **passed through a quiescent state**.
+
+* Quiescent State Detection
+The non-preemptible RCU-sched flavor’s quiescent states apply to CPUs, and are user-space execution, context switch, idle, and offline state. Therefore, RCU-sched only needs to track tasks and interrupt handlers that are actually running because blocked and preempted tasks are always in quiescent states.
+
+- Scheduling-Clock Interrupt
+The `rcu_check_callbacks()` is invoked from the scheduling-clock interrupt handler, which allows RCU to periodically check whether a given busy CPU is in the usermode or idle-loop quiescent states. If the CPU is in one of these quiescent states, `rcu_check_callbacks()` invokes `rcu_sched_qs()`, which sets the per-CPU `rcu_sched_data.passed_quiesce` fields to 1.
+The `rcu_check_callbacks()` function invokes `rcu_pending()` to determine whether a recent event or current condition means that RCU requires attention from this CPU. If so, `rcu_check_callbacks()` invokes raise `softirq()`
+
+- Context-Switch Handling
+The context-switch quiescent state is recorded by invoking `rcu_note_context_switch()` from `schedule()`. The `rcu_note_context_switch()` function invokes `rcu_sched_qs()` to inform RCU of the context switch, which is a quiescent state of the CPU.
+
+* Grace Period Detection
+- Softirq Handler for RCU
+RCU’s busy-CPU grace period detection relies on the _RCU SOFTIRQ_ handler function `rcu_process_callbacks()`. This function first calls `rcu_check_quiescent_state()` to report recent quiescent states on the current CPU. Then `rcu_process_callbacks()` starts a new grace period if needed, and finally calls invoke `rcu_callbacks()` to invoke any callbacks whose grace period has already elapsed.
+
+Function `rcu_check_quiescent_state()` first invokes `note_gp_changes()` to update the CPU-local rcu data structure to record the end of previous grace periods and the beginning of new grace periods. If an old grace period has ended, `rcu_advance_cbs()` is invoked to advance all callbacks, otherwise, `rcu_accelerate_cbs()` is invoked to assign a grace period to any recently arrived callbacks.
+
+`rcu_check_quiescent_state()` checks whether `->qs` pending indicates that RCU needs a quiescent state from this CPU. If so, it checks whether `->passed_quiesce` indicates that this CPU has in fact passed through a quiescent state. If so, it invokes `rcu_report_qs_rdp()` to report that quiescent state up the combining tree.
+
+The `rcu_report_qs_rdp()` function first verifies that the CPU has in fact detected a legitimate quiescent state for the current grace period, and under the protection of the leaf rcu node structure’s ->lock. If not, it resets quiescent-state detection and returns, thus ignoring any redundant quiescentstates belonging to some earlier grace period. Otherwise, if the `->qsmask` field indicates that RCU needs to report a quiescent state from this CPU, `rcu_accelerate_cbs()` is invoked to assign a grace-period number to any new callbacks, and then `rcu_report_qs_rnp()` is invoked to report the quiescent state to the rcu node combining tree.
+The `rcu_report_qs_rnp()` function traverses up the rcu node tree, at each level holding the rcu node structure’s `->lock`. At any level, if the child structure’s `->qsmask` bit is already clear, or if the `->gpnum` changes, traversal stops. Otherwise, the child structure’s bit is cleared from `->qsmask`, after which, if `->qsmask` is non-zero, traversal stops. Otherwise, traversal proceeds on to the parent rcu node structure. Once the root is reached, traversal stops and `rcu_report_qs_rsp()` is invoked to awaken the graceperiod kthread (kernel thread). The grace-period kthread will then clean up after the now-ended grace period, and, if needed, start a new one.
+
+- Grace-Period Kernel Thread
+When no grace period is required, the grace-period kthread sets its rcu state structure’s `->flags` field to `RCU_GP WAIT GPS` and then waits within an inner infinite loop for that structure’s `->gp` state field to be set. Once set, rcu gp kthread() invokes `rcu_gp_init()` to initialize a new grace period, which rechecks the `->gp` state field. It increments rsp->gpnum by 1 to record a new grace period number. Finally, it performs a breadth-first traversal of the rcu node structures in the combining tree. For each rcu node structure rnp, we set the `rnp->qsmask` to indicate which children must report quiescent states for the new grace period, and set `rnp->gpnum` and `rnp->completed` to their rcu state counterparts. If the rcu node structure rnp is the parent of the current CPU’s rcu data, we invoke `__note_gp_changes()` to set up the CPU-local rcu data state. Other CPUs will invoke `__note_gp_changes()` after their next scheduling-clock interrupt.
+To clean up after a grace period, `rcu_gp_kthread()` calls `rcu_gp_cleanup()` after setting the rcu state field `rsp->gp` state to `RCU_GP_CLEANUP`. After the function returns, `rsp->gp` state is set to `RCU_GP_CLEANED` to record the end of the old grace period. It first sets each rcu node structure’s `->completed` field to the rcu state structure’s `->gpnum` field. It then updates the current CPU’s CPU-local rcu data structure by calling `__note_gp_changes()`. For other CPUs, the update will take place when they handle the scheduling-clock interrupts. After the traversal, it marks the completion of the grace period by setting the rcu state structure’s `->completed` field to that structure’s `->gpnum` field, and invokes `rcu_advance_cbs()` to advance callbacks. Finally, if another grace period is needed, we set `rsp->gp` flags to `RCU_GP_FLAG_INIT`.

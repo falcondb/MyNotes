@@ -183,6 +183,23 @@ rcu_read_unlock
   __rcu_read_unlock
     preempt_enable  
 ```
+
+
+### Tree RCU
+Refer the _RCU data structure_ section in note _RCU.md_.
+* `kernel/rcu/tree.c`
+```
+__init rcu_init
+  for_each_online_cpu
+    rcutree_prepare_cpu
+    rcu_cpu_starting
+    rcutree_online_cpu
+
+  alloc_workqueue("rcu_gp", WQ_MEM_RECLAIM, 0)
+  alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0)
+  srcu_init  
+```
+
 * `tree.c`
 ```
 synchronize_rcu(void)
@@ -267,26 +284,35 @@ __note_gp_changes
   rcu_gpnum_ovf  
 ```
 
+```
+/*
+ * Check to see if this CPU is in a non-context-switch quiescent state
+ * (user mode or idle loop for rcu, non-softirq execution for rcu_bh).
+ * Also schedule RCU core processing.
+ *
+ * This function must be called from hardirq context.  It is normally
+ * invoked from the scheduling-clock interrupt.
+ */
+rcu_check_callbacks
+
+```
+
+```
+/*
+ * Check to see if there is a new grace period of which this CPU
+ * is not yet aware, and if so, set up local rcu_data state for it.
+ * Otherwise, see if this CPU has just passed through its first
+ * quiescent state for this grace period, and record that fact if so.
+ */
+rcu_check_quiescent_state
+
+```
+
 ### `rcu_segcblist.c`
 ```
 rcu_segcblist_advance
 
 
-```
-
-### Tree RCU
-Refer the _RCU data structure_ section in note _RCU.md_.
-* `kernel/rcu/tree.c`
-```
-__init rcu_init
-  for_each_online_cpu
-    rcutree_prepare_cpu
-    rcu_cpu_starting
-    rcutree_online_cpu
-
-  alloc_workqueue("rcu_gp", WQ_MEM_RECLAIM, 0)
-  alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0)
-  srcu_init  
 ```
 
 ### RCU update.c
@@ -320,7 +346,6 @@ Create a *kthread* with function `rcu_tasks_kthread`
 rcu_tasks_kthread
 
 ```
-
 
 
 ### Tiny RCU, uniprocessor-only
