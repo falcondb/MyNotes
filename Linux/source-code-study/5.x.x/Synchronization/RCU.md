@@ -1,4 +1,5 @@
 ## RCU
+Better to read "Verification of the Tree-Based Hierarchical Read-Copy Update in the Linux Kernel" first
 
 ### Key data structures
 
@@ -37,6 +38,19 @@ struct rcu_synchronize {
 
 * `tree.h`
 ```
+/* Values for rcu_state structure's gp_state field. */
+#define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
+#define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
+#define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
+#define RCU_GP_ONOFF     3	/* Grace-period initialization hotplug. */
+#define RCU_GP_INIT      4	/* Grace-period initialization. */
+#define RCU_GP_WAIT_FQS  5	/* Wait for force-quiescent-state time. */
+#define RCU_GP_DOING_FQS 6	/* Wait done for force-quiescent-state time. */
+#define RCU_GP_CLEANUP   7	/* Grace-period cleanup started. */
+#define RCU_GP_CLEANED   8	/* Grace-period cleanup complete. */
+```
+
+```
 /*
  * Definition for node within the RCU grace-period-detection hierarchy.
  */
@@ -45,6 +59,12 @@ struct rcu_node {
   unsigned long gp_seq;	/* Track rsp->rcu_gp_seq. */
   unsigned long gp_seq_needed; /* Track furthest future GP request. */
   unsigned long completedqs; /* All QSes done for this node. */
+
+  unsigned long qsmask;
+  unsigned long qsmaskinit;
+  unsigned long qsmaskinitnext;
+
+
   ...
   struct rcu_node *parent;
   ...
@@ -308,10 +328,169 @@ rcu_check_quiescent_state
 
 ```
 
+### `rcu_gp_kthread` in `tree.c`
+#### RCU kthread init
+
+```
+__init rcu_spawn_gp_kthread
+  t= kthread_create(rcu_gp_kthread, ...)
+  rcu_state.gp_kthread = t
+  wake_up_process(t)
+  rcu_spawn_nocb_kthreads()   // for each cpu
+  rcu_spawn_boost_kthreads()  // for each cpu
+
+early_initcall(rcu_spawn_gp_kthread);
+```
+
+#### RCU kthread main loop
+```
+rcu_gp_kthread
+  rcu_bind_gp_kthread   // bind to hoursekeeping CPU
+
+  for (;;)
+      for (;;)
+      rcu_state.gp_state = RCU_GP_WAIT_GPS
+
+      // wait without system load contribution until the condition becomes true
+      swait_event_idle_exclusive(rcu_state.gp_wq, rcu_state.gp_flags & RCU_GP_FLAG_INIT)
+
+      rcu_state.gp_state = RCU_GP_DONE_GPS
+      if rcu_gp_init()
+        break
+      cond_resched_tasks_rcu_qs
+        rcu_tasks_qs(current)
+        cond_resched()
+      // end of inner loop
+
+    /* Handle quiescent-state forcing. */  
+    rcu_gp_fqs_loop  
+
+    /* Handle grace-period end. */
+		rcu_state.gp_state = RCU_GP_CLEANUP;
+		rcu_gp_cleanup
+		rcu_state.gp_state = RCU_GP_CLEANED;
+
+  // end of outer loop      
+```
+
+```
+/*
+ * Initialize a new grace period.  Return false if no grace period required.
+ */
+rcu_gp_init
+  if !rcu_state.gp_flags
+    return false  // no GP needed
+
+  WRITE_ONCE(rcu_state.gp_flags, 0)
+  if rcu_gp_in_progress
+    return false   //Grace period already in progress, don't start another.
+
+  /* Advance to a new grace period and initialize state. */
+  rcu_seq_start   ==>  WRITE_ONCE(&rcu_state.gp_seq + 1); smp_mb();
+
+  /* Apply per-leaf buffered online and offline operations to the rcu_node tree. */
+  rcu_state.gp_state = RCU_GP_ONOFF
+  rcu_for_each_leaf_node(rnp)
+    rcu_init_new_rnp   or   rcu_cleanup_dead_rnp
+
+
+  /*
+	 * Set the quiescent-state-needed bits in all the rcu_node
+	 * structures for all currently online CPUs in breadth-first
+	 * order, starting from the root rcu_node structure,
+   */  
+  rcu_state.gp_state = RCU_GP_INIT
+	rcu_for_each_node_breadth_first(rnp)
+    rnp->qsmask = rnp->qsmaskinit
+    WRITE_ONCE(rnp->gp_seq, rcu_state.gp_seq)
+    if (rnp == rdp->mynode)
+			 __note_gp_changes(rnp, rdp)
+
+    /* Quiescent states for tasks on any now-offline CPUs. */
+    mask = rnp->qsmask & ~rnp->qsmaskinitnext;
+    rnp->rcu_gp_init_mask = mask;   
+
+    if (mask || rnp->wait_blkd_tasks) && rcu_is_leaf_node(rnp)
+      rcu_report_qs_rnp
+
+    cond_resched_tasks_rcu_qs
+
+```
+
+```
+/*
+ * Loop doing repeated quiescent-state forcing until the grace period ends.
+ */
+rcu_gp_fqs_loop
+  for (;;)
+    rcu_state.gp_state = RCU_GP_WAIT_FQS
+    swait_event_idle_timeout_exclusive(rcu_state.gp_wq, rcu_gp_fqs_check_wake(&gf), j); // condition checks RCU_GP_FLAG_FQS
+		rcu_state.gp_state = RCU_GP_DOING_FQS
+
+    /* If time for quiescent-state forcing, do it. */
+    rcu_gp_fqs
+    cond_resched_tasks_rcu_qs
+
+```
+
+```
+/*
+ * Clean up after the old grace period.
+ */
+rcu_gp_cleanup
+
+  /* Propagate new ->gp_seq value to rcu_node structures so that
+  * other CPUs don't have to wait until the start of the next grace
+  * period to process their callbacks.
+  */
+  rcu_seq_end
+  rcu_for_each_node_breadth_first
+    WRITE_ONCE(rnp->gp_seq, new_gp_seq)
+    if rnp == rdp->mynode
+			needgp = __note_gp_changes(rnp, rdp) || needgp
+
+    needgp = rcu_future_gp_cleanup(rnp) || needgp;
+
+    cond_resched_tasks_rcu_qs
+    rcu_gp_slow  
+```
+
+
+```
+rcu_report_qs_rnp
+  /* Walk up the rcu_node hierarchy. */
+  for (;;)
+    rnp->qsmask &= ~mask;
+    if rnp->qsmask != 0
+      return  // qs report is done
+
+    rnp->completedqs = rnp->gp_seq;
+    mask = rnp->grpmask;  
+    rnp = rnp->parent
+```
+
+
 ### `rcu_segcblist.c`
 ```
 rcu_segcblist_advance
+  /*
+  * Find all callbacks whose ->gp_seq numbers indicate that they
+  * are ready to invoke, and put them into the RCU_DONE_TAIL segment.
+  */
+  for i = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++
+    if ULONG_CMP_LT(seq, rsclp->gp_seq[i])
+      break;
+    WRITE_ONCE(rsclp->tails[RCU_DONE_TAIL], rsclp->tails[i]);
 
+  /* Clean up tail pointers that might have been misordered above. */
+	for (j = RCU_WAIT_TAIL; j < i; j++)
+		WRITE_ONCE(rsclp->tails[j], rsclp->tails[RCU_DONE_TAIL]);  
+
+	for j = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++, j++
+		if rsclp->tails[j] == rsclp->tails[RCU_NEXT_TAIL]
+			break;  /* No more callbacks. */
+		WRITE_ONCE(rsclp->tails[j], rsclp->tails[i])
+		rsclp->gp_seq[j] = rsclp->gp_seq[i]
 
 ```
 
@@ -364,6 +543,7 @@ static struct rcu_ctrlblk rcu_ctrlblk = {
 	.curtail	= &rcu_ctrlblk.rcucblist,
 };
 ```
+
 #### Initialization
 * `kernel/rcu/tiny.c`
 register a *softirq* with a function `rcu_process_callbacks`
