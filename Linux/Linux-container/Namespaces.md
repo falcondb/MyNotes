@@ -23,7 +23,7 @@ The ppid of an orphan process is the init process with pid = 1
 
 >Other processes in the namespace (even privileged processes) can send only those signals for which the init process has established a handler.
 
->Signals can also be sent to the PID namespace init process by processes in ancestor PID namespaces. Again, *only the signals for which the init process has established a handler can be sent, with two exceptions: SIGKILL and SIGSTOP*. When a process in an ancestor PID namespace sends these two signals to the init process, they are forcibly delivered (and can't be caught). The SIGSTOP signal stops the init process; SIGKILL terminates it. Since the init process is essential to the functioning of the PID namespace, *if the init process is terminated by SIGKILL (or it terminates for any other reason), the kernel terminates all other processes in the namespace by sending them a SIGKILL signal*.
+>Signals can also be sent to the PID namespace init process by processes in ancestor PID namespaces. Again, *only the signals for which the init process has established a handler can be sent, with two exceptions: _SIGKILL_ and _SIGSTOP_. When a process in an ancestor PID namespace sends these two signals to the init process, they are forcibly delivered (and can't be caught). The SIGSTOP signal stops the init process; SIGKILL terminates it. Since the init process is essential to the functioning of the PID namespace, *if the init process is terminated by SIGKILL (or it terminates for any other reason), the kernel terminates all other processes in the namespace by sending them a SIGKILL signal*.
 
 >Normally, a PID namespace will also be destroyed when its init process terminates. However, there is an unusual corner case: the namespace won't be destroyed as long as a /proc/PID/ns/pid file for one of the processes in that namespaces is bind mounted or held open.
 
@@ -71,6 +71,12 @@ Create a new Nerwork namespace by clone() or cmdline like
 ip netns add netns1
 ```
 When the ip tool creates a network namespace, it will create a bind mount for it under ```/var/run/netns```
+
+There are several ways to connect the namespace to the internet if that is desired. A bridge can be created in the root namespace and the veth device from netns1. Alternatively, IP forwarding coupled with network address translation (NAT) could be configured in the root namespace.
+
+Non-root processes that are assigned to a namespace only have access to the networking devices and configuration that have been set up in that namespace—root can add new devices and configure them.
+
+
 
 [Linux Man IP netns](http://man7.org/linux/man-pages/man8/ip-netns.8.html) for more details
 

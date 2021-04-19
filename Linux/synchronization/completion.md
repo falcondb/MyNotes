@@ -2,7 +2,7 @@
 - Introduction
   If you have one or more threads that must wait for some kernel activity to have reached a point or a specific state, completions can provide a race-free solution to this problem.
 
-  The advantage of using completions is that they have a well defined, focused purpose which makes it very easy to see the intent of the code, but they also result in more efficient code as all threads can continue execution until the result is actually needed, and both the waiting and the signalling is highly efficient using low level scheduler sleep/wakeup facilities.
+  The advantage of using completions is that they have a well defined, focused purpose which makes it very easy to see the intent of the code, but they also result in more efficient code as all threads can continue execution until the result is actually needed, and both the waiting and the signaling is highly efficient using low level scheduler sleep/wakeup facilities.
 
   Completions are built on top of the waitqueue and wakeup infrastructure of the Linux scheduler. The event the threads on the waitqueue are waiting for is reduced to a simple flag in 'struct completion', appropriately called "done".
 
@@ -47,6 +47,6 @@
   Both `complete()` and `complete_all()` can be called in IRQ/atomic context safely
 
   `bool try_wait_for_completion(struct completion *done)` and `bool completion_done(struct completion *done)`
-  
+
 # kernel/sched/completion.c
 ```

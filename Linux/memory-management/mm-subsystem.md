@@ -31,7 +31,7 @@ The _vsyscall_ and _vDSO_ segments are two mechanisms used to accelerate certain
 
 The _vsyscall_ area is the older of these two mechanisms. It was added as a way to execute specific system calls which do not need any real level of privilege to run. The classic example is `gettimeofday()`, the kernel allows the page containing the current time to be mapped read-only into user space; that page also contains a fast `gettimeofday()` implementation.
 
-_Vsyscall_ has some limitations; among other things, there is only space for a handful of virtual system calls. As those limitations were hit, the kernel developers introduced the more flexible vDSO implementation.
+_vsyscall_ has some limitations; among other things, there is only space for a handful of virtual system calls. As those limitations were hit, the kernel developers introduced the more flexible vDSO implementation.
 
 Note that the vDSO area has moved, while the vsyscall page remains at the same location. The location of the vsyscall page is nailed down in the kernel ABI, but the vDSO area - like most other areas in the user-space memory layout - has its location randomized every time it is mapped.
 

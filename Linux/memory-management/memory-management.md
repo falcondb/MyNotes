@@ -1,7 +1,7 @@
 ## Memory management
 
 ### Notes
-* virtual to phyical by cr3 = & page directory (x86)
+* virtual to phyical by register `cr3` = & page directory (x86)
 * Page Frame Number (PFN)
 * address types
   * User virtual addresses
@@ -294,5 +294,3 @@ CPU families with weak hardware ordering:
 
 _Strong Memory Models_
 A strong hardware memory model is one in which every machine instruction comes implicitly with acquire and release semantics. As a result, when one CPU core performs a sequence of writes, every other CPU core sees those values change in the same order that they were written.
-
-  

@@ -15,9 +15,7 @@
 ## System Call
 
 [Anatomy of a system call, part 1](https://lwn.net/Articles/604287/)
-x86_64 syscall invocation: sys_call_table with kernel function addresses, RAX for the function number in the table
-wrmsrl instruction writes to model-specific register,  MSR_LSTAR in x86_64, copy registers to kernel registers and
-call the function address
+x86_64 syscall invocation: sys_call_table with kernel function addresses, RAX for the function number in the table wrmsrl instruction writes to model-specific register,  MSR_LSTAR in x86_64, copy registers to kernel registers and call the function address
 See my note about `syscall.h` in 5.x linux release.
 
 [Anatomy of a system call, part 2](https://lwn.net/Articles/604515/)

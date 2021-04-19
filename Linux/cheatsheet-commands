@@ -5,16 +5,12 @@ iconv				convert encoding of given files from one encoding to another, ISO88592,
 ldconfig			configure dynamic linker run-time bindings, /etc/ld.so.conf
 ldd					print shared object dependencies
 ldconfig    configure dynamic linker run-time bindings
-ldconfig    configure dynamic linker run-time bindings
-ldconfig    configure dynamic linker run-time bindings
-ldconfig    configure dynamic linker run-time bindings
 locale				description of multilanguage support
 makedb				create a simple database
 mtrace				malloc tracing of a process
 pldd				display dynamic shared objects linked into a process
 ftrace              Linux kernel trace tool.
 ltrace        A library call tracer
-ftrace              Linux kernel trace tool.
 IOVisor             BPF monitor tools
 stap                systemtap script
 stapbpf             systemtap bpf runtime, package systemtap.
@@ -115,7 +111,6 @@ rename
 basename, dirname
 modprobe			module configuration, adding, removing and etc
 bootparam			kernel command line parameters
-tc
 /proc/cmdline
 tunctl        create and manage persistent TUN/TAP interfaces
 nc/netcat
@@ -126,7 +121,6 @@ route
 arping     route cache
 dig        route cache, in pakage bind-utils
 ip neighbor show route cache
-tc
 mii-tool   view, manipulate media-independent interface status
 ebtables   Ethernet bridge frame table administration
 iptables
@@ -141,7 +135,6 @@ tree
 dd          convert and copy files
 objdump     display information from object files
 readelf     ELF file reader
-pahole      Shows and manipulates data structure layout, package dwarves
 
 systemd-cgls
 systemd-cgtop
