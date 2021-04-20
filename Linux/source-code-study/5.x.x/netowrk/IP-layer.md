@@ -94,6 +94,7 @@ ip_rcv_finish_core
 			ip_route_input_rcu
 				if multicast,	ip_route_input_mc
 				else ip_route_input_slow
+					fib_lookup
 ```
 
 * `ip_local_deliver`
@@ -496,6 +497,6 @@ ipmr_queue_xmit
 * `ipv4/inetpeer.c`
 ```
 __init inet_initpeers
-	// set cache size limitation 
+	// set cache size limitation
 	peer_cachep = kmem_cache_create("inet_peer_cache", ...)
 ```

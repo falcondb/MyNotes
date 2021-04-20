@@ -6,7 +6,7 @@
 
 > The term Quality of Service (QoS) is often used as a synonym for traffic control.
 
-> you can think of traffic control as a way to provide [some of] the statefulness of a circuit-based network to a packet-switched network.
+> you can think of traffic control as a way to provide some of the statefulness of a circuit-based network to a packet-switched network.
 
 #### Tokens and buckets
 > Instead of calculating the current usage and time, one method is to generate tokens at a desired rate, and only dequeue packets or bytes if a token is available.

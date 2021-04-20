@@ -35,7 +35,7 @@ By the callback `ipv4_conntrack_defrag`. which gathers the defragmented packets.
 [Netfilter Hacking How-to](https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO.html)
 Only the first package of a new connection will traverse the table: the result of this traversal in then applied to all future packets in the same connection.
 
-After a table is registered with a hook, userspace can read and replace its conteents using `getsockopt` and `setsockopt`
+After a table is registered with a hook, userspace can read and replace its contents using `getsockopt` and `setsockopt`
 
 The kernel starts traversing the location indicted by the particular hook. That rule is examined, if the `struct ipt_ip` elements match, each `struct ipt_entry_match` is checked in turn. If the match function returns 0, iteration stops on that rule. If the iteration continues to the end, the `struct ipt_entry_target` is examined: if it's a standard target. tje _verdict_ field is read (negtive means a packet verdict, positive means an offset to jump to). IF the answer is positive and the offset is not that of the next rule, the _back_ variable is set, and the previous _back_ value is placed in that rule's `confrom` field.
 

@@ -2,17 +2,12 @@
 
 _RSS: Receive Side Scaling_
 Contemporary NICs support multiple receive and transmit descriptor queues. On reception, a NIC can send different packets to different queues to distribute processing among CPUs.
-The NIC distributes packets by applying a filter to each packet that assigns it to one of a small number of logical flows. Packets for each flow are steered to a separate receive queue, which in turn can be processed by separate CPUs. This mechanism is
-generally known as _Receive-side Scaling_.
+The NIC distributes packets by applying a filter to each packet that assigns it to one of a small number of logical flows. Packets for each flow are steered to a separate receive queue, which in turn can be processed by separate CPUs. This mechanism is generally known as _Receive-side Scaling_.
 
-Each receive queue has a separate IRQ associated with it. The NIC triggers
-this to notify a CPU when new packets arrive on the given queue. The active mapping
-of queues to IRQs can be determined from `/proc/interrupts`.
+Each receive queue has a separate IRQ associated with it. The NIC triggers this to notify a CPU when new packets arrive on the given queue. The active mapping of queues to IRQs can be determined from `/proc/interrupts`.
 To manually adjust the IRQ affinity of each interrupt see `Documentation/IRQ-affinity.txt`. Some systems will be running `irqbalance`, a daemon that dynamically optimizes IRQ assignments and as a result may override any manual settings.
 
-RSS should be enabled when latency is a concern or whenever receive
-interrupt processing forms a bottleneck. Spreading load between CPUs
-decreases queue length.
+RSS should be enabled when latency is a concern or whenever receive interrupt processing forms a bottleneck. Spreading load between CPUs decreases queue length.
 
 _RPS: Receive Packet Steering_
 Receive Packet Steering (RPS) is logically a software implementation of RSS.
@@ -37,7 +32,7 @@ _Accelerated RFS_
 A hardware-accelerated load balancing mechanism that uses soft state to steer flows based on where the application thread consuming the packets of each flow is running.
 
 
-_Transmit Packet Steering XPS_
+_XPS: Transmit Packet Steering_
 Transmit Packet Steering is a mechanism for intelligently selecting which transmit queue to use when transmitting a packet on a multi-queue device. This can be accomplished by recording two kinds of maps, either a mapping of CPU to hardware queue(s) or a mapping of receive queue(s) to hardware transmit queue(s).
 
 1. XPS using CPUs map
@@ -53,9 +48,7 @@ TCP segmentation is dependent on support for the use of partial checksum offload
 For IPv4 segmentation we support one of two types in terms of the IP ID. The default behavior is to increment the IP ID with every segment. If the GSO type SKB_GSO_TCP_FIXEDID is specified then we will not increment the IP ID and all segments will use the same IP ID.
 
 
-
 _IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads_
-
 
 
 _GSO: Generic Segmentation Offload_
@@ -64,7 +57,7 @@ Many people have observed that a lot of the savings in TSO come from traversing 
 The key to minimising the cost in implementing this is to postpone the segmentation as late as possible. In the ideal world, the segmentation would occur inside each NIC driver.
 Unfortunately this requires modifying each and every NIC driver so it would take quite some time. A much easier solution is to perform the segmentation just before the entry into the driver's xmit routine. This concept is called GSO: Generic Segmentation Offload.
 
-_Generic Receive Offload GRO_
+_GRO: Generic Receive Offload_
 Generic receive offload is the complement to GSO. Ideally any frame assembled by GRO should be segmented to create an identical sequence of frames using GSO, and any sequence of frames segmented by GSO should be able to be reassembled back to the original by GRO.
 
 _Partial Generic Segmentation Offload_

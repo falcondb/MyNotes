@@ -136,8 +136,8 @@ if the one's complement sum overflows, add 1 back
 
 ### Type Of Service
 * the second byte of the IPv4 header
-* Traffic Class field in IPv6 packets, is an 8-bit differentiated services field (DS field) which consists of a 6-bit Differentiated Services Code Point (DSCP) field[3] and a 2-bit Explicit Congestion Notification (ECN) field. While Differentiated Services is somewhat backwards compatible with ToS, ECN is not.
-* RFC 1349 introduced an additional "lowcost" field. lowdelay	throughput	reliability	lowcost, or [Linux TC PIOR Man page](https://man7.org/linux/man-pages/man8/tc-prio.8.html) Minimize delay (md), Maximize throughput (mt), Maximize reliability (mr),  Minimize monetary cost (mmc), Normal Service
+* Traffic Class field in IPv6 packets, is an 8-bit differentiated services field (DS field) which consists of a 6-bit _Differentiated Services Code Point (DSCP)_ field and a 2-bit _Explicit Congestion Notification (ECN)_ field. While Differentiated Services is somewhat backwards compatible with ToS, ECN is not.
+* RFC 1349 introduced an additional "lowcost" field. lowdelay	throughput reliability	lowcost, or [Linux TC PIOR Man page](https://man7.org/linux/man-pages/man8/tc-prio.8.html) Minimize delay (md), Maximize throughput (mt), Maximize reliability (mr),  Minimize monetary cost (mmc), Normal Service
 * See [Linux TC PIOR Man page](https://man7.org/linux/man-pages/man8/tc-prio.8.html) for how Linux assigns package using TOS (md, mt, mr, mmc) to the pdisc bands.
 * `tc qdisc show` shows the _priomap_ magic numbers as the band IDs for the _TOS_ values.
 
