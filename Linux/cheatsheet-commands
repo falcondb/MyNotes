@@ -101,7 +101,6 @@ logger				Enters the given message into the system log
 lsblk lscpu lsipc lslocks lslogins lsof
 mesg 				Controls whether other users can send messages to the current user's terminal, mesg yes/no
 mkfs				Builds a file system on a device
-tc
 prlimit				Get and set a process' resource limits
 uuidgen
 udevadm				udev admin tool. udevd process.

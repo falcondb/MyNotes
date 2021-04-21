@@ -17,11 +17,11 @@
   - CPU: uptime, ps, top, pidstat,  /proc /sys
   - memory: sysctl, /proc/memoryinfo, free, numactl
     - `/sys/devices/system/node/` for status, `/sys/kernel/mm/` for the features.
-  - network: make sure enter the right namespace, ip a:l:route, bridge/brctl, iptables (nftables), tc, ss, `/sys/class/net`, nc/socat, dig, ebtables (netfilter in bridge)
+  - network: make sure enter the right namespace, ip a:l:route, bridge/brctl, ethtool, iptables (nftables) ebtables, tc, ss, `/sys/class/net`, nc/socat, dig
   - Cgroups: where, for what, for whom, current status
   - Namepces: `nsenter` `unshare` (`clone`),
 ####Monitoring
-  - Utilization, Saturation, Error (dmesg, /var/log/, /sys/, journalctl),
+  - Utilization, Saturation, Error (dmesg, /var/log/, /sys/, journalctl/systemd),
   - sar, iostate, vmstate, mpstat, /proc /sys, perf ftrace eBPF,
   - process: prtstat, pidstat, pstree
 ####Tracing
@@ -43,7 +43,7 @@
   - Process memory image loading: ELF Program header, GNU linker `ld`
   - Segments: `fork` (COW), `clone` for threading, `exit`, `mmap`, `shmat`, `brk`; `mm_struct -> vm_area_struct`, `mm_struct -> pgd`, `vm_file -> f_dentry -> d_inode -> i_mapping`, `page -> address_space -> inode`
 - kernelspace:
-  - Node, Zone, Page. Free page list, `vm_area_struct` list of a process
+  - Node, Zone, Page. Free page list, `vm_area_struct` list of a process, CPU cache, SMP.
   - MMU, TLB
   - kmalloc (directly mapping), vmalloc (non-continues), kmap (high-memory)
 - Page faults:
@@ -54,7 +54,9 @@
   - Region is invalid or no permissions, Error, SIGSEGV
   - Fault occurred in the kernel portion address space, Minor
   - Fault occurred in the userspace region while in kernel mode, Error
-
+- Memory ordering
+  - Compile-time reordering: memory barrier `asm volatile("" ::: "memory")`
+  - Runtime reordering:
 ### Process
 #### Process states
 - `ps` command to show state
@@ -82,8 +84,8 @@
 - `dentry`: mapping cache from filename to `inode`, otherwise, searching from root.
 - `inode`: `address_space`.
   - `inode` states:
-    - exists in memory but is not linked to any file and is not in active use.
-    - is in memory and is being used for one or more tasks representing a file.
+    - Exists in memory but is not linked to any file and is not in active use.
+    - In memory and being used for one or more tasks representing a file.
     - Its data contents have been changed, dirty.
 - `task_struct`: `files_struct` -> `file` `fdtable`
 - _page cache_ for memory mapping; _buffer cache_ the access units used are the individual blocks of a device and not whole pages.
@@ -97,10 +99,32 @@
 - types: cpu,cpuacct,  memory, hugetlb,  net_cls,net_prio,  pids,  devices, blkio, systemd, perf_event, freezer, rdma
 
 ### Network
+#### Protocols
+##### TCP
+  - Connection-oriented: 3 way handshake for establish, SYNC x; SYNC/ACK, y/x+1; ACK y+1. 4 way handshake for termination
+  - In order: Sliding Window,
+  - Streaming: MSS, URG/PUSH
+  - Reliable: retransmission for missing segment (duplicate ACKs) or ack-timeout, adaptive retransmission (RTT), flow control (Window Size), congestion control (QoS, congestion window > MSS)
+
+##### UDP
+  - Message-oriented. IPv4 UDP header checksum is optional, IPv6 mandatory. UDP cork.
+##### Stream Control Transmission Protocol (SCTP)
+  - Message-oriented reliable stream
+##### ICMP
+
+##### MLPS
+  - explicit routes using labels, a virtual circuit network from packet switch network.
+
+##### IGMP
+  - broadcast, self registered
+
+##### Border Gateway Protocol (BGP)
+  - autonomous systems, routing scalability, hierarchically aggregate routing information
+  - border routers, TCP
 
 #### Conntrack & NetFilter
   - Conntrack states: _NEW_, _ESTABLISHED_, _RELATED_, _INVALID_
-  - NetFilter hooks: _PREROUTING_, _LOCAL INPUT_, _FORWARD_, _LOCAL OUTPUT_, _POSTROUTING_
+  - NetFilter hooks: _PREROUTING_, _LOCAL_INPUT_, _FORWARD_, _LOCAL_OUTPUT_, _POSTROUTING_
   - Only the first package of a new connection will traverse the NetFilter table
 
 #### Network virtualization
