@@ -186,7 +186,7 @@ A: If the search function drops the per-entry lock before returning, then the ca
 ### RCU data structure
 [RCU's major data structures](https://www.kernel.org/doc/Documentation/RCU/Design/Data-Structures/Data-Structures.html)
 
-Each leaf node of the rcu_node tree has up to 16 rcu_data structures associated with it, so that there are NR_CPUS number of rcu_data structures, one for each possible CPU.
+Each leaf node of _the rcu_node tree has up to 16 `rcu_data` structures_ associated with it, so that there are NR_CPUS number of rcu_data structures, one for each possible CPU.
 
 The purpose of this combining tree is to allow per-CPU events such as quiescent states, dyntick-idle transitions, and CPU hotplug operations to be processed efficiently and scalably.
 
@@ -209,21 +209,27 @@ The general role of each of these data structures is as follows:
 
 #### rcu_state
 The rcu_node tree is embedded into the `->node[]` array
-RCU grace periods are numbered, and the `->gp_seq` field contains the current grace-period sequence number. The bottom two bits are the state of the current grace period, which can be zero for not yet started or one for in progress. This field is protected by the root rcu_node structure's `->lock` field.
+RCU grace periods are numbered, and _the `->gp_seq` field contains the current grace-period sequence number_. The bottom two bits are the state of the current grace period, which can be zero for not yet started or one for in progress. This field is protected by the root rcu_node structure's `->lock` field.
 
-There are `->gp_seq` fields in the rcu_node and rcu_data structures as well. The fields in the rcu_state structure represent the most current value, and those of the other structures are compared in order to detect the beginnings and ends of grace periods in a distributed fashion. The values flow from rcu_state to rcu_node to rcu_data.
+There are `->gp_seq` fields in the rcu_node and rcu_data structures as well. _The fields in the rcu_state structure represent the most current value, and those of the other structures are compared in order to detect the beginnings and ends of grace periods in a distributed fashion. The values flow from rcu_state to rcu_node to rcu_data._
 
 #### rcu_node
+
+
+The `->grpnum` field gives this node's position within the children of its parent
 
 The rcu_node structures' `->gp_seq` fields are the counterparts of the field of the same name in the rcu_state structure. They each may lag up to one step behind their rcu_state counterpart. If the bottom two bits of a given rcu_node structure's `->gp_seq` field is zero, then this rcu_node structure believes that RCU is idle.
 
 The `->gp_seq` field of each rcu_node structure is updated at the beginning and the end of each grace period.
 
+
 The `->gp_seq_needed` fields record the furthest-in-the-future grace period request seen by the corresponding rcu_node structure. The request is considered fulfilled when the value of the `->gp_seq` field equals or exceeds that of the `->gp_seq_needed` field.
 
-The `->qsmask` field tracks which of this rcu_node structure's children still need to report quiescent states for the current normal grace period. Such children will have a value of 1 in their corresponding bit. Note that the leaf rcu_node structures should be thought of as having rcu_data structures as their children. Similarly, the `->expmask` field tracks which of this rcu_node structure's children still need to report quiescent states for the current expedited grace period. An expedited grace period has the same conceptual properties as a normal grace period, but the expedited implementation accepts extreme CPU overhead to obtain much lower grace-period latency, for example, consuming a few tens of microseconds worth of CPU time to reduce grace-period duration from milliseconds to tens of microseconds. The `->qsmaskinit` field tracks which of this rcu_node structure's children cover for at least one online CPU.
+_The `->qsmask` field tracks which of this rcu_node structure's children still need to report quiescent states for the current normal grace period_. Such children will have a value of 1 in their corresponding bit. Note that the leaf rcu_node structures should be thought of as having rcu_data structures as their children. Similarly, the `->expmask` field tracks which of this rcu_node structure's children still need to report quiescent states for the current expedited grace period. An expedited grace period has the same conceptual properties as a normal grace period, but the expedited implementation accepts extreme CPU overhead to obtain much lower grace-period latency, for example, consuming a few tens of microseconds worth of CPU time to reduce grace-period duration from milliseconds to tens of microseconds. The `->qsmaskinit` field tracks which of this rcu_node structure's children cover for at least one online CPU.
 
 The `->blkd_tasks` field is a list header for the list of blocked and preempted tasks. As tasks undergo context switches within RCU read-side critical sections, their task_struct structures are enqueued (via the task_struct's `->rcu_node_entry` field) onto the head of the `->blkd_tasks` list for the leaf rcu_node structure corresponding to the CPU on which the outgoing context switch executed. As these tasks later exit their RCU read-side critical sections, they remove themselves from the list.
+
+The ->wait_blkd_tasks field indicates whether or not the current grace period is waiting on a blocked task.
 
 #### rcu_segcblist
 The segments are as follows:
@@ -249,9 +255,11 @@ The CPU advances the callbacks in its rcu_data structure whenever it notices tha
 
 #### Dyntick-Idle Handling
 TO BE STUDIED
+[RCU and dynticks-idle mode](http://www.joelfernandes.org/linuxinternals/2018/06/15/rcu-dynticks.html)
+[A Tour Through TREE_RCU's Expedited Grace Periods](https://01.org/linuxgraphics/gfx-docs/drm/RCU/Design/Expedited-Grace-Periods/Expedited-Grace-Periods.html)
 
 #### rcu_head
-The `->next` field is used to link the rcu_head structures together in the lists within the rcu_data structures. The `->func` field is a pointer to the function to be called when the callback is ready to be invoked, and this function is passed a pointer to the rcu_head structure. However, `kfree_rcu()` uses the ->func field to record the offset of the rcu_head structure within the enclosing RCU-protected data structure.
+The `->next` field is used to link the rcu_head structures together in the lists within the rcu_data structures. *The `->func` field is a pointer to the function to be called when the callback is ready to be invoked*, and this function is passed a pointer to the rcu_head structure. However, `kfree_rcu()` uses the ->func field to record the offset of the rcu_head structure within the enclosing RCU-protected data structure.
 
 
 
@@ -300,3 +308,15 @@ The `rcu_report_qs_rnp()` function traverses up the rcu node tree, at each level
 - Grace-Period Kernel Thread
 When no grace period is required, the grace-period kthread sets its rcu state structure’s `->flags` field to `RCU_GP WAIT GPS` and then waits within an inner infinite loop for that structure’s `->gp` state field to be set. Once set, rcu gp kthread() invokes `rcu_gp_init()` to initialize a new grace period, which rechecks the `->gp` state field. It increments rsp->gpnum by 1 to record a new grace period number. Finally, it performs a breadth-first traversal of the rcu node structures in the combining tree. For each rcu node structure rnp, we set the `rnp->qsmask` to indicate which children must report quiescent states for the new grace period, and set `rnp->gpnum` and `rnp->completed` to their rcu state counterparts. If the rcu node structure rnp is the parent of the current CPU’s rcu data, we invoke `__note_gp_changes()` to set up the CPU-local rcu data state. Other CPUs will invoke `__note_gp_changes()` after their next scheduling-clock interrupt.
 To clean up after a grace period, `rcu_gp_kthread()` calls `rcu_gp_cleanup()` after setting the rcu state field `rsp->gp` state to `RCU_GP_CLEANUP`. After the function returns, `rsp->gp` state is set to `RCU_GP_CLEANED` to record the end of the old grace period. It first sets each rcu node structure’s `->completed` field to the rcu state structure’s `->gpnum` field. It then updates the current CPU’s CPU-local rcu data structure by calling `__note_gp_changes()`. For other CPUs, the update will take place when they handle the scheduling-clock interrupts. After the traversal, it marks the completion of the grace period by setting the rcu state structure’s `->completed` field to that structure’s `->gpnum` field, and invokes `rcu_advance_cbs()` to advance callbacks. Finally, if another grace period is needed, we set `rsp->gp` flags to `RCU_GP_FLAG_INIT`.
+
+[A Tour Through RCU's Requirements](https://www.kernel.org/doc/Documentation/RCU/Design/Requirements/Requirements.html)
+*READ IT! If really interested in what the problems RCU tries to address*
+* Memory-Barrier Guarantees
+  - Each CPU that has an RCU read-side critical section that begins before synchronize_rcu() starts is guaranteed to execute a full memory barrier between the time that the RCU read-side critical section ends and the time that synchronize_rcu() returns. Without this guarantee, a pre-existing RCU read-side critical section might hold a reference to the newly removed struct foo after the kfree() on line 14 of remove_gp_synchronous().
+ - Each CPU that has an RCU read-side critical section that ends after synchronize_rcu() returns is guaranteed to execute a full memory barrier between the time that synchronize_rcu() begins and the time that the RCU read-side critical section begins. Without this guarantee, a later RCU read-side critical section running after the kfree() on line 14 of remove_gp_synchronous() might later run do_something_gp() and find the newly deleted struct foo.
+ - If the task invoking synchronize_rcu() remains on a given CPU, then that CPU is guaranteed to execute a full memory barrier sometime during the execution of synchronize_rcu(). This guarantee ensures that the kfree() on line 14 of remove_gp_synchronous() really does execute after the removal on line 11.
+ - If the task invoking synchronize_rcu() migrates among a group of CPUs during that invocation, then each of the CPUs in that group is guaranteed to execute a full memory barrier sometime during the execution of synchronize_rcu(). This guarantee also ensures that the kfree() on line 14 of remove_gp_synchronous() really does execute after the removal on line 11, but also in the case where the thread executing the synchronize_rcu() migrates in the meantime.
+
+ * [Linux-Kernel Memory Ordering: Help Arrives At Last!](http://www2.rdrop.com/users/paulmck/scalability/paper/LinuxMM.2016.10.04c.LCE.pdf) at [YouTube](https://www.youtube.com/watch?v=ULFytshTvIY&ab_channel=linuxconfau2017-Hobart%2CAustralia)
+
+- The common-case RCU primitives are unconditional. They are invoked, they do their job, and they return, with no possibility of error, and no need to retry. This is a key RCU design philosophy.

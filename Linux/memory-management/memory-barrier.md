@@ -27,3 +27,11 @@
 [Explanation of the Linux-Kernel Memory Consistency Model](linux/tools/memory-model/Documentation/explanation.txt)
 
 [A formal kernel memory-ordering model](https://lwn.net/Articles/718628/)
+
+[Who's afraid of a big bad optimizing compiler?](https://lwn.net/Articles/793253/)
+
+[ACCESS_ONCE()](https://lwn.net/Articles/508991/)
+
+[Kernel Concurrency Sanitizer (KCSAN)](https://lwn.net/Articles/800298/)
+
+[Dmitry Vyukov homepage](https://www.1024cores.net/)

@@ -5,27 +5,15 @@ Better to read "Verification of the Tree-Based Hierarchical Read-Copy Update in 
 
 * `linux/types.h`
 ```
-/**
- *
- * The struct is aligned to size of pointer. On most architectures it happens
- * naturally due ABI requirements, but some architectures (like CRIS) have
- * weird ABI and we need to ask it explicitly.
- *
- * The alignment is required to guarantee that bit 0 of @next will be
- * clear under normal conditions -- as long as we use call_rcu() or
- * call_srcu() to queue the callback.
- *
- * This guarantee is important for few reasons:
- *  - future call_rcu_lazy() will make use of lower bits in the pointer;
- *  - the structure shares storage space in struct page with @compound_head,
- *    which encode PageTail() in bit 0. The guarantee is needed to avoid
- *    false-positive PageTail().
- */
 struct callback_head {
 	struct callback_head *next;
 	void (*func)(struct callback_head *head);
 } __attribute__((aligned(sizeof(void *))));
 #define rcu_head callback_head
+
+typedef void (*rcu_callback_t)(struct rcu_head *head);
+typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);
+
 ```
 
 * `rcupdate_wait.h`
@@ -36,7 +24,7 @@ struct rcu_synchronize {
 };
 ```
 
-* `tree.h`
+* `kernel/rcu/tree.h`
 ```
 /* Values for rcu_state structure's gp_state field. */
 #define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
@@ -236,15 +224,12 @@ synchronize_rcu(void)
   else
 		wait_rcu_gp(call_rcu)   // rcupdate_wait.h
       _wait_rcu_gp          // rcupdate_wait.h
-        call_rcu_func_t __crcu_array[] = { call_rcu }
-        struct rcu_synchronize __rs_array[ARRAY_SIZE(__crcu_array)]
-
-        __wait_rcu_gp(checktiny, ARRAY_SIZE(__crcu_array), __crcu_array, __rs_array)
+        __wait_rcu_gp
           for i in ARRAY_SIZE(__crcu_array)
-            init_completion(&rs_array[i].completion)
+            // if the passed in callback is already registered, skip the callback registration
             (crcu_array[i])(&rs_array[i].head, wakeme_after_rcu)    // crcu_array[i] should be call_rcu
 
-            wait_for_completion(&rs_array[i].completion)  
+            wait_for_completion(&rs_array[i].completion)      // wait here for complete(&rcu->completion)
 ```
 
 ```
@@ -254,17 +239,11 @@ wakeme_after_rcu(struct rcu_head *head)
 ```
 
 ```
-call_rcu  ==> __call_rcu(head, func, 0)
-
-```
-
-```
 __call_rcu
   rcu_segcblist_enqueue
 
   __call_rcu_core
   note_gp_changes
-
 
 ```
 
@@ -350,15 +329,15 @@ rcu_gp_kthread
   for (;;)
       for (;;)
       rcu_state.gp_state = RCU_GP_WAIT_GPS
-
-      // wait without system load contribution until the condition becomes true
-      swait_event_idle_exclusive(rcu_state.gp_wq, rcu_state.gp_flags & RCU_GP_FLAG_INIT)
-
       rcu_state.gp_state = RCU_GP_DONE_GPS
-      if rcu_gp_init()
+
+      if rcu_gp_init()  // Init is done here!
         break
+
       cond_resched_tasks_rcu_qs
         rcu_tasks_qs(current)
+          rcu_tasks_classic_qs
+
         cond_resched()
       // end of inner loop
 
@@ -381,7 +360,7 @@ rcu_gp_init
   if !rcu_state.gp_flags
     return false  // no GP needed
 
-  WRITE_ONCE(rcu_state.gp_flags, 0)
+  WRITE_ONCE(rcu_state.gp_flags, 0)  /* Clear all flags: New GP. */
   if rcu_gp_in_progress
     return false   //Grace period already in progress, don't start another.
 
@@ -401,10 +380,12 @@ rcu_gp_init
    */  
   rcu_state.gp_state = RCU_GP_INIT
 	rcu_for_each_node_breadth_first(rnp)
+
     rnp->qsmask = rnp->qsmaskinit
-    WRITE_ONCE(rnp->gp_seq, rcu_state.gp_seq)
+    WRITE_ONCE(rnp->gp_seq, rcu_state.gp_seq) // update the rcu_node qp_seq
+
     if (rnp == rdp->mynode)
-			 __note_gp_changes(rnp, rdp)
+			 __note_gp_changes(rnp, rdp)   // report to its parent leaf rcu_node
 
     /* Quiescent states for tasks on any now-offline CPUs. */
     mask = rnp->qsmask & ~rnp->qsmaskinitnext;
@@ -525,6 +506,17 @@ Create a *kthread* with function `rcu_tasks_kthread`
 rcu_tasks_kthread
 
 ```
+
+```
+rcu_core
+
+```
+
+
+
+
+
+
 
 
 ### Tiny RCU, uniprocessor-only
