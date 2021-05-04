@@ -206,23 +206,21 @@ __init rcu_init
     rcu_cpu_starting        // setup the masks, for new incoming CPU call rcu_report_qs_rnp if waiting for its qs report
     rcutree_online_cpu      // final step for online CPU, kthread affinity
 
+	/* Create workqueue for expedited GPs and for Tree SRCU. */
+	rcu_gp_wq = alloc_workqueue("rcu_gp", WQ_MEM_RECLAIM, 0)
+	rcu_par_gp_wq = alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0)
+
   srcu_init  
 ```
 
 ```
 synchronize_rcu(void)
-	if rcu_blocking_is_gp
-      might_sleep
-      preempt_disable
-      ret = num_online_cpus() <= 1
-      preempt_enable
-		return
 	if rcu_gp_is_expedited
 		synchronize_rcu_expedited
 
   /* wait for GP has been elapsed
   else
-		wait_rcu_gp(call_rcu)   // rcupdate_wait.h
+		wait_rcu_gp(call_rcu)   // rcupdate_wait.h see call_rcu implementation!
       _wait_rcu_gp          // rcupdate_wait.h
         __wait_rcu_gp
           for i in ARRAY_SIZE(__crcu_array)
@@ -239,19 +237,16 @@ wakeme_after_rcu(struct rcu_head *head)
 ```
 
 ```
-__call_rcu
+call_rcu ==> __call_rcu  // not lazy callback
   rcu_segcblist_enqueue
 
   __call_rcu_core
-  note_gp_changes
-
-```
-
-```
-note_gp_changes
-  needwake = __note_gp_changes
-  if needwake
-		rcu_gp_kthread_wake
+		if !rcu_is_watching
+				invoke_rcu_core()
+					if (use_softirq)
+						raise_softirq(RCU_SOFTIRQ);		// see rcu_core_si and rcu_core, enabling RCU_SOFTIRQ for ksoftirqd
+					else
+						invoke_rcu_core_kthread()
 
 ```
 
@@ -261,7 +256,9 @@ note_gp_changes
  * grace periods.  The caller must hold the ->lock of the leaf rcu_node
  * structure corresponding to the current CPU, and must have irqs disabled.
  */
-__note_gp_changes
+note_gp_changes ==> __note_gp_changes
+	if (rdp->gp_seq == rnp->gp_seq)
+		return false
   /* Handle the ends of any preceding grace periods first. */
     if rcu_seq_completed_gp(rdp->gp_seq, rnp->gp_seq) ==> ULONG_CMP_LT(old, new & ~RCU_SEQ_STATE_MASK)  ==> ULONG_MAX / 2 < (a) - (b)
     rcu_advance_cbs
@@ -272,40 +269,16 @@ __note_gp_changes
     rcu_accelerate_cbs
 
   /* Now handle the beginnings of any new-to-this-CPU grace periods. */  
-  if (rcu_seq_new_gp(rdp->gp_seq, rnp->gp_seq)
+  if (rcu_seq_new_gp(rdp->gp_seq, rnp->gp_seq)	// the last two bits in gp_seq are not set
     need_gp = !!(rnp->qsmask & rdp->grpmask)
-    rdp->cpu_no_qs.b.norm = need_gp
+    rdp->cpu_no_qs.b.norm = need_gp		// the parent rnp doesn't need this rdp to report qs
     rdp->core_needs_qs = need_gp
     zero_cpu_stall_ticks(rdp)
 
   rdp->gp_seq = rnp->gp_seq
 
-  rcu_gpnum_ovf  
 ```
 
-```
-/*
- * Check to see if this CPU is in a non-context-switch quiescent state
- * (user mode or idle loop for rcu, non-softirq execution for rcu_bh).
- * Also schedule RCU core processing.
- *
- * This function must be called from hardirq context.  It is normally
- * invoked from the scheduling-clock interrupt.
- */
-rcu_check_callbacks
-
-```
-
-```
-/*
- * Check to see if there is a new grace period of which this CPU
- * is not yet aware, and if so, set up local rcu_data state for it.
- * Otherwise, see if this CPU has just passed through its first
- * quiescent state for this grace period, and record that fact if so.
- */
-rcu_check_quiescent_state
-
-```
 
 ### `rcu_gp_kthread` in `tree.c`
 #### RCU kthread init
@@ -321,6 +294,9 @@ __init rcu_spawn_gp_kthread
 early_initcall(rcu_spawn_gp_kthread);
 ```
 
+
+
+
 #### RCU kthread main loop
 ```
 rcu_gp_kthread
@@ -334,10 +310,6 @@ rcu_gp_kthread
 
       if rcu_gp_init()  // Init is done here!
         break   // jump to the end of the for the inner loop and nothing to be done right now
-
-      cond_resched_tasks_rcu_qs
-        rcu_tasks_qs(current)
-          WRITE_ONCE((current)->rcu_tasks_holdout, false)
 
         cond_resched()  // see section RCU, cond_resched(), and performance regressions in RCU.md
       // end of inner loop
@@ -365,11 +337,6 @@ rcu_gp_init
   /* Advance to a new grace period and initialize state. */
   rcu_seq_start   ==>  WRITE_ONCE(&rcu_state.gp_seq + 1); smp_mb();
 
-  /*
-	 * Set the quiescent-state-needed bits in all the rcu_node
-	 * structures for all currently online CPUs in breadth-first
-	 * order, starting from the root rcu_node structure,
-   */  
   rcu_state.gp_state = RCU_GP_INIT
 
 	rcu_for_each_node_breadth_first(rnp)
@@ -380,9 +347,10 @@ rcu_gp_init
     if (rnp == rdp->mynode)
 			 __note_gp_changes(rnp, rdp)   // report to its parent leaf rcu_node
 
-    cond_resched_tasks_rcu_qs
-      rcu_tasks_qs(current)
-      cond_resched()
+		if ((mask || rnp->wait_blkd_tasks) && rcu_is_leaf_node(rnp))			 
+				rcu_report_qs_rnp	 
+
+
 ```
 
 ```
@@ -398,27 +366,24 @@ rcu_gp_fqs_loop   // called by rcu_gp_kthread after handling starting a GP
         force_qs_rnp(rcu_implicit_dynticks_qs)    /* Handle dyntick-idle and offline CPUs. */
 
 
-    cond_resched_tasks_rcu_qs
+
 
 ```
 
 ```
 force_qs_rnp
   rcu_for_each_leaf_node(rnp)
-      cond_resched_tasks_rcu_qs
 
       for_each_leaf_node_possible_cpu
           bit = leaf_node_cpu_bit(rnp, cpu)
           if rnp->qsmask & bit  != 0
-              if f(rdp)
+              if f(rdp)			// f is dyntick_save_progress_counter  or   rcu_implicit_dynticks_qs
                   mask |= bit
       // end of for_each_leaf_node_possible_cpu
 
 
       if mask != 0
           rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags)
-
-
 ```
 
 ```
@@ -439,24 +404,14 @@ rcu_gp_cleanup
 
     needgp = rcu_future_gp_cleanup(rnp) || needgp;
 
-    cond_resched_tasks_rcu_qs
     rcu_gp_slow  
 ```
 
-
 ```
-rcu_report_qs_rnp
-  /* Walk up the rcu_node hierarchy. */
-  for (;;)
-    /* Our bit has already been cleared, or the relevant grace period is already over, so done, return. */
-    rnp->qsmask &= ~mask;   // clear the bit from the reported child rnp
-    if rnp->qsmask != 0   
-      return  // Other bits still set at this level, so done
-
-    rnp->completedqs = rnp->gp_seq;
-    mask = rnp->grpmask;    // set mask to this rnp grpmask for the next for loop
-    rnp = rnp->parent
+rcu_tasks_qs(current)		// for new RCU task implementation?
+	WRITE_ONCE((current)->rcu_tasks_holdout, false)
 ```
+
 
 
 ### `rcu_segcblist.c`
@@ -500,31 +455,28 @@ rcu_segcblist_advance
 ```
 
 #### update.c
-```
-__init rcu_spawn_tasks_kthread
-	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
-	smp_mb(); /* Ensure others see full kthread. */
-	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
 
-core_initcall(rcu_spawn_tasks_kthread);
-```
-Create a *kthread* with function `rcu_tasks_kthread`
 
 ```
-rcu_tasks_kthread
+rcu_core_si is the handler for RCU Softirq
 
-```
-
-```
-rcu_core
+rcu_core_si == rcu_core
 
   rcu_check_quiescent_state
     note_gp_changes
-    rcu_report_qs_rdp
-        rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags)    //see rcu_report_qs_rnp
 
-        if needwake
-            rcu_gp_kthread_wake();
+		if (rdp->cpu_no_qs.b.norm)
+			return
+
+    rcu_report_qs_rdp
+				if (rdp->cpu_no_qs.b.norm || rdp->gp_seq != rnp->gp_seq || rdp->gpwrap)
+
+						/* cpu_no_qs.b.norm == false means at least 1 qs passed see rcu_qs
+						* rdp->gp_seq != rnp->gp_seq?! cpu offline?! */
+						rdp->cpu_no_qs.b.norm = true;	/* need qs for new gp. */
+						return
+
+		        rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags)    //see rcu_report_qs_rnp
 
   rcu_check_gp_start_stall
 
@@ -538,7 +490,7 @@ rcu_core
 
 
 ```
-/* called in __do_softirq() when the ksoftirqd is on current CPU
+/* called in __do_softirq() when the ksoftirqd is on current CPU after processing the pending softirqs
 rcu_softirq_qs
   rcu_qs
     __this_cpu_write(rcu_data.cpu_no_qs.b.norm, false)
@@ -555,6 +507,36 @@ rcu_start_this_gp
 ```
 
 
+```
+rcu_report_qs_rnp
+  /* Walk up the rcu_node hierarchy. */
+  for (;;)
+    /* Our bit has already been cleared, or the relevant grace period is already over, so done, return. */
+    rnp->qsmask &= ~mask;   // clear the bit from the reported child rnp
+    if rnp->qsmask != 0   
+      return  // Other bits still set at this level, so done
+
+    rnp->completedqs = rnp->gp_seq;
+    mask = rnp->grpmask;    // set mask to this rnp grpmask for the next for loop
+    rnp = rnp->parent
+```
+
+
+
+```
+/* Task-based RCU implementations 2020 */
+__init rcu_spawn_tasks_kthread
+	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
+	smp_mb(); /* Ensure others see full kthread. */
+	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
+
+core_initcall(rcu_spawn_tasks_kthread);
+```
+
+```
+rcu_tasks_kthread
+
+```
 
 
 ### Tiny RCU, uniprocessor-only
