@@ -198,17 +198,17 @@ Refer the _RCU data structure_ section in note _RCU.md_.
 * `kernel/rcu/tree.c`
 ```
 __init rcu_init
-  for_each_online_cpu
-    rcutree_prepare_cpu
-    rcu_cpu_starting
-    rcutree_online_cpu
+  if (use_softirq)
+    open_softirq(RCU_SOFTIRQ, rcu_core_si)
 
-  alloc_workqueue("rcu_gp", WQ_MEM_RECLAIM, 0)
-  alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0)
+  for_each_online_cpu
+    rcutree_prepare_cpu     // rdp initialization
+    rcu_cpu_starting        // setup the masks, for new incoming CPU call rcu_report_qs_rnp if waiting for its qs report
+    rcutree_online_cpu      // final step for online CPU, kthread affinity
+
   srcu_init  
 ```
 
-* `tree.c`
 ```
 synchronize_rcu(void)
 	if rcu_blocking_is_gp
@@ -327,22 +327,24 @@ rcu_gp_kthread
   rcu_bind_gp_kthread   // bind to hoursekeeping CPU
 
   for (;;)
-      for (;;)
+
+    for (;;)
       rcu_state.gp_state = RCU_GP_WAIT_GPS
       rcu_state.gp_state = RCU_GP_DONE_GPS
 
       if rcu_gp_init()  // Init is done here!
-        break
+        break   // jump to the end of the for the inner loop and nothing to be done right now
 
       cond_resched_tasks_rcu_qs
         rcu_tasks_qs(current)
-          rcu_tasks_classic_qs
+          WRITE_ONCE((current)->rcu_tasks_holdout, false)
 
-        cond_resched()
+        cond_resched()  // see section RCU, cond_resched(), and performance regressions in RCU.md
       // end of inner loop
 
+
     /* Handle quiescent-state forcing. */  
-    rcu_gp_fqs_loop  
+    rcu_gp_fqs_loop
 
     /* Handle grace-period end. */
 		rcu_state.gp_state = RCU_GP_CLEANUP;
@@ -357,21 +359,11 @@ rcu_gp_kthread
  * Initialize a new grace period.  Return false if no grace period required.
  */
 rcu_gp_init
-  if !rcu_state.gp_flags
-    return false  // no GP needed
 
   WRITE_ONCE(rcu_state.gp_flags, 0)  /* Clear all flags: New GP. */
-  if rcu_gp_in_progress
-    return false   //Grace period already in progress, don't start another.
 
   /* Advance to a new grace period and initialize state. */
   rcu_seq_start   ==>  WRITE_ONCE(&rcu_state.gp_seq + 1); smp_mb();
-
-  /* Apply per-leaf buffered online and offline operations to the rcu_node tree. */
-  rcu_state.gp_state = RCU_GP_ONOFF
-  rcu_for_each_leaf_node(rnp)
-    rcu_init_new_rnp   or   rcu_cleanup_dead_rnp
-
 
   /*
 	 * Set the quiescent-state-needed bits in all the rcu_node
@@ -379,6 +371,7 @@ rcu_gp_init
 	 * order, starting from the root rcu_node structure,
    */  
   rcu_state.gp_state = RCU_GP_INIT
+
 	rcu_for_each_node_breadth_first(rnp)
 
     rnp->qsmask = rnp->qsmaskinit
@@ -387,30 +380,44 @@ rcu_gp_init
     if (rnp == rdp->mynode)
 			 __note_gp_changes(rnp, rdp)   // report to its parent leaf rcu_node
 
-    /* Quiescent states for tasks on any now-offline CPUs. */
-    mask = rnp->qsmask & ~rnp->qsmaskinitnext;
-    rnp->rcu_gp_init_mask = mask;   
-
-    if (mask || rnp->wait_blkd_tasks) && rcu_is_leaf_node(rnp)
-      rcu_report_qs_rnp
-
     cond_resched_tasks_rcu_qs
-
+      rcu_tasks_qs(current)
+      cond_resched()
 ```
 
 ```
 /*
  * Loop doing repeated quiescent-state forcing until the grace period ends.
  */
-rcu_gp_fqs_loop
+rcu_gp_fqs_loop   // called by rcu_gp_kthread after handling starting a GP
   for (;;)
-    rcu_state.gp_state = RCU_GP_WAIT_FQS
-    swait_event_idle_timeout_exclusive(rcu_state.gp_wq, rcu_gp_fqs_check_wake(&gf), j); // condition checks RCU_GP_FLAG_FQS
-		rcu_state.gp_state = RCU_GP_DOING_FQS
-
     /* If time for quiescent-state forcing, do it. */
     rcu_gp_fqs
+        force_qs_rnp(dyntick_save_progress_counter) // for the first fqs
+        or
+        force_qs_rnp(rcu_implicit_dynticks_qs)    /* Handle dyntick-idle and offline CPUs. */
+
+
     cond_resched_tasks_rcu_qs
+
+```
+
+```
+force_qs_rnp
+  rcu_for_each_leaf_node(rnp)
+      cond_resched_tasks_rcu_qs
+
+      for_each_leaf_node_possible_cpu
+          bit = leaf_node_cpu_bit(rnp, cpu)
+          if rnp->qsmask & bit  != 0
+              if f(rdp)
+                  mask |= bit
+      // end of for_each_leaf_node_possible_cpu
+
+
+      if mask != 0
+          rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags)
+
 
 ```
 
@@ -441,12 +448,13 @@ rcu_gp_cleanup
 rcu_report_qs_rnp
   /* Walk up the rcu_node hierarchy. */
   for (;;)
-    rnp->qsmask &= ~mask;
-    if rnp->qsmask != 0
-      return  // qs report is done
+    /* Our bit has already been cleared, or the relevant grace period is already over, so done, return. */
+    rnp->qsmask &= ~mask;   // clear the bit from the reported child rnp
+    if rnp->qsmask != 0   
+      return  // Other bits still set at this level, so done
 
     rnp->completedqs = rnp->gp_seq;
-    mask = rnp->grpmask;  
+    mask = rnp->grpmask;    // set mask to this rnp grpmask for the next for loop
     rnp = rnp->parent
 ```
 
@@ -510,11 +518,41 @@ rcu_tasks_kthread
 ```
 rcu_core
 
+  rcu_check_quiescent_state
+    note_gp_changes
+    rcu_report_qs_rdp
+        rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags)    //see rcu_report_qs_rnp
+
+        if needwake
+            rcu_gp_kthread_wake();
+
+  rcu_check_gp_start_stall
+
+  rcu_do_batch
+    rcu_segcblist_extract_done_cbs
+
+    for rhp = rcu_cblist_dequeue
+      __rcu_reclaim
+        head->func( head )
 ```
 
 
+```
+/* called in __do_softirq() when the ksoftirqd is on current CPU
+rcu_softirq_qs
+  rcu_qs
+    __this_cpu_write(rcu_data.cpu_no_qs.b.norm, false)
+```
 
 
+```
+rcu_start_this_gp
+  for rnp = rnp->parent // traverse from the given rcu_node to the root
+    rnp->gp_seq_needed = gp_seq_req   // update the furthest future GP request
+
+  WRITE_ONCE(rcu_state.gp_flags, rcu_state.gp_flags | RCU_GP_FLAG_INIT)
+
+```
 
 
 
@@ -541,6 +579,7 @@ static struct rcu_ctrlblk rcu_ctrlblk = {
 register a *softirq* with a function `rcu_process_callbacks`
 ```
 __init rcu_init
+
   open_softirq(RCU_SOFTIRQ, rcu_process_callbacks)
   srcu_init
 ```

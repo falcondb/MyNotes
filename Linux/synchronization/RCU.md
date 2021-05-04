@@ -1,4 +1,5 @@
 ## RCU
+[lengthy list of RCU articles](https://lwn.net/Kernel/Index/#Read-copy-update)
 
 ### RCU concepts and internal
 [What is RCU, Fundamentally?](https://lwn.net/Articles/262464/)
@@ -320,3 +321,15 @@ To clean up after a grace period, `rcu_gp_kthread()` calls `rcu_gp_cleanup()` af
  * [Linux-Kernel Memory Ordering: Help Arrives At Last!](http://www2.rdrop.com/users/paulmck/scalability/paper/LinuxMM.2016.10.04c.LCE.pdf) at [YouTube](https://www.youtube.com/watch?v=ULFytshTvIY&ab_channel=linuxconfau2017-Hobart%2CAustralia)
 
 - The common-case RCU primitives are unconditional. They are invoked, they do their job, and they return, with no possibility of error, and no need to retry. This is a key RCU design philosophy.
+
+
+[RCU, cond_resched(), and performance regressions](https://lwn.net/Articles/603252/)
+A fundamental aspect of RCU's operation is the detection of "quiescent states" on each processor; a quiescent state is one in which no kernel code can hold a reference to any RCU-protected data structure.
+
+The kernel's full tickless mode, which is only now becoming ready for serious use, can make the detection of quiescent states more difficult. A CPU running in the tickless mode will, due to the constraints of that mode, be running a single process. If that process stays within the kernel for a long time, no quiescent states will be observed. That, in turn, prevents RCU from declaring the end of a "grace period" and running the (possibly lengthy) set of accumulated RCU callbacks. Delayed grace periods can result in excessive latencies elsewhere in the kernel or, if things go really badly, out-of-memory problems.
+
+ A solution to this problem based on a simple insight: the kernel already has a mechanism for allowing other things to happen while some sort of lengthy operation is in progress. Code that is known to be prone to long loops will, on occasion, call cond_resched() to give the scheduler a chance to run a higher-priority process.
+
+ But kernel code can only call cond_resched() in places where it can handle being scheduled out of the CPU. So it cannot be running in an atomic context and, thus, cannot hold references to any RCU-protected data structures. In other words, a call to cond_resched() marks a quiescent state; all that is needed is to tell RCU about it.
+
+Paul did not call into RCU to signal a quiescent state with every cond_resched() call; instead, that function was modified to increment a per-CPU counter and, using that counter, only call into RCU once for every 256 (by default) cond_resched() calls.
