@@ -1,6 +1,22 @@
 ## RCU
 Better to read "Verification of the Tree-Based Hierarchical Read-Copy Update in the Linux Kernel" first
 
+### High level idea of how RCU tree works from my own study on v5.12.x
+* How QS is collected from the CPUs:
+	- The QS state is collected from the current CPU by calling `rcu_qs()`, which basically sets `rcu_data.cpu_no_qs.b.norm` to false.
+	- In the Softirq RCU mode (`module_param(use_softirq, bool, 0444)`), after Softirq handler `__do_softirq` finishing the pending Softirq events, it is a QS state, and Softirq handler calls `rcu_softirq_qs ==> rcu_qs` to report this CPU entered QS state in `rcu_data`.
+	- The RCU Softirq `RCU_SOFTIRQ` handler `rcu_core_si and rcu_core` works in the following steps:
+		- `note_gp_changes` updates itself for any GP changes including updating the callbacks, reset `cpu_no_qs.b.norm` if parent doesn't need it, and update GP in `rcu_data`
+		- `rcu_report_qs_rdp` propagates the RCU tree nodes' state changes.
+		- finally, `rcu_do_batch` calls the callbacks registered before this GP
+
+* How the GPs are managed:
+	- There are kernel threads designed for the GP management. They are created during the RCU initialization `__init rcu_spawn_gp_kthread`, the kernel thread for plain GP management `rcu_gp_kthread` is created here (other RCU threads with special missions `rcu_nocb_cb_kthread, rcu_boost_kthread` are also created here, but not current main study focus).
+	- `rcu_boost_kthread` manages the GPs, the high-level procedure of GP management:
+		- loops with `rcu_gp_init` util GP initialization is completed
+		- loops in `rcu_gp_fqs_loop ==> rcu_gp_fqs`, loop doing repeated quiescent-state forcing until the grace period ends. It keeps asking the leaf nodes to `rcu_report_qs_rnp`
+		- `rcu_gp_cleanup` generates the next GP seq, updates the `gp_seq` with the new GP seq. Call `__note_gp_changes` for this CPU where `rcu_gp_kthread` is running. Other clean-up work.
+
 ### Key data structures
 
 * `linux/types.h`
@@ -284,6 +300,7 @@ note_gp_changes ==> __note_gp_changes
 #### RCU kthread init
 
 ```
+/* the kthreads that handle each RCU flavor's grace periods. */
 __init rcu_spawn_gp_kthread
   t= kthread_create(rcu_gp_kthread, ...)
   rcu_state.gp_kthread = t
@@ -293,9 +310,6 @@ __init rcu_spawn_gp_kthread
 
 early_initcall(rcu_spawn_gp_kthread);
 ```
-
-
-
 
 #### RCU kthread main loop
 ```
@@ -358,15 +372,17 @@ rcu_gp_init
  * Loop doing repeated quiescent-state forcing until the grace period ends.
  */
 rcu_gp_fqs_loop   // called by rcu_gp_kthread after handling starting a GP
+	rnp = rcu_get_root()
+
   for (;;)
     /* If time for quiescent-state forcing, do it. */
+		if (!READ_ONCE(rnp->qsmask) && !rcu_preempt_blocked_readers_cgp(rnp))
+			break
+
     rcu_gp_fqs
         force_qs_rnp(dyntick_save_progress_counter) // for the first fqs
         or
         force_qs_rnp(rcu_implicit_dynticks_qs)    /* Handle dyntick-idle and offline CPUs. */
-
-
-
 
 ```
 
@@ -519,6 +535,9 @@ rcu_report_qs_rnp
     rnp->completedqs = rnp->gp_seq;
     mask = rnp->grpmask;    // set mask to this rnp grpmask for the next for loop
     rnp = rnp->parent
+
+		rcu_report_qs_rsp
+			rcu_gp_kthread_wake
 ```
 
 
@@ -537,6 +556,21 @@ core_initcall(rcu_spawn_tasks_kthread);
 rcu_tasks_kthread
 
 ```
+
+The RCU management subsytem is triggered by *CPU tick event*
+```
+tick_handle_periodic ==> tick_periodic and tick_sched_handle
+		update_process_times
+				rcu_sched_clock_irq
+					if rcu_pending(user)
+							invoke_rcu_core()
+									if (use_softirq)
+											raise_softirq(RCU_SOFTIRQ)
+									else
+											invoke_rcu_core_kthread()
+
+```
+
 
 
 ### Tiny RCU, uniprocessor-only

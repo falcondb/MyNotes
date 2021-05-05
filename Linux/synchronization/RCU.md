@@ -333,3 +333,5 @@ The kernel's full tickless mode, which is only now becoming ready for serious us
  But kernel code can only call cond_resched() in places where it can handle being scheduled out of the CPU. So it cannot be running in an atomic context and, thus, cannot hold references to any RCU-protected data structures. In other words, a call to cond_resched() marks a quiescent state; all that is needed is to tell RCU about it.
 
 Paul did not call into RCU to signal a quiescent state with every cond_resched() call; instead, that function was modified to increment a per-CPU counter and, using that counter, only call into RCU once for every 256 (by default) cond_resched() calls.
+
+[Linux RCU原理剖析（二）-渐入佳境](https://www.debugger.wiki/article/html/158774178648729)
