@@ -1,29 +1,95 @@
 ##trouble shooting methodology
 ###Investigation:
 - Any possible relevant events, such as hardware, kernel, platform software upgrade, unexpected workload, network traffic congestion, operation errors.
-- Environment: own data center, cloud, customer system, network (virtual, routing, tunneling), the runtime, bare metal, VM, container, hardware.
+- Environment: own data center, cloud, customer system, network (network topology (fat tree), virtual, routing, tunneling), CPU/Memory/Network model, the runtime, bare metal, VM, container, hardware. Application characteristics (CPU intensive, data intensive, IO/network intensive), Application architecture. Application binary with symbol table, optimized.
 - Pattern: repeatable or one time, event period, one particular environment or almost everywhere.
 
 ###Trouble shouting strategy and Plan:
 - The scope of the event: single machine or large scope
-- The computer source: CPU, memory, network, storage, or configuration.
+- The computer resources: CPU, memory, network, storage, or configuration.
 - The software level: user space or application, kernel, hardware
-
 
 ###Executions:
 ####Examination:
   - System: uname, kernal configuration file (/boot/config), sysctl, lsmod, bootparam
-  - storage: mount, df, du, lsof, fuser, dumpe2fs
+  - storage: mount, df, du, lsof(open /proc/$pid/fd, fdinfo), fuser (open /proc/$pid/fd, fdinfo), dumpe2fs, fdisk
   - CPU: uptime, ps, top, pidstat,  /proc /sys
   - memory: sysctl, /proc/memoryinfo, free, numactl
     - `/sys/devices/system/node/` for status, `/sys/kernel/mm/` for the features.
-  - network: make sure enter the right namespace, ip a:l:route, bridge/brctl, ethtool, iptables (nftables) ebtables, tc, ss, `/sys/class/net`, nc/socat, dig
+  - network: make sure enter the right namespace, ip a:l:route, bridge/brctl, ethtool, iptables (nftables) ebtables, tc, ss (netlink), `/sys/class/net`, nc/socat, dig
   - Cgroups: where, for what, for whom, current status
   - Namepces: `nsenter` `unshare` (`clone`),
 ####Monitoring
   - Utilization, Saturation, Error (dmesg, /var/log/, /sys/, journalctl/systemd),
-  - sar, iostate, vmstate, mpstat, /proc /sys, perf ftrace eBPF,
-  - process: prtstat, pidstat, pstree
+  - sar, iostat(/proc/diskstats, /proc/stat, ), vmstat (/proc/vmstat), mpstat, /proc /sys, perf ftrace eBPF,
+  - process: prtstat(proc/$PID/stat), pidstat, pstree
+
+#### proc fs
+#####/proc/stat
+  - CPU: iowait, irq, softirq
+  - intr: counts of interrupts
+  - ctxt: number of context switches across all CPUs
+  - btime: boot time
+  - processes: number of processes and threads created
+  - procs_running: number of processes currently running on CPUs
+  - procs_blocked: number of processes currently blocked, waiting for I/O to complete
+
+#####/proc/uptime
+  - #1 up time in seconds, #2 idle time
+
+#####/proc/softirq
+  - Columns: softirq types, including NET_RX, NET_TX, BLOCK, TASKLET, SCHED, and RCU
+
+#####/proc/interrupts
+  - #1 IRQ number, #2 event count, #3 device that is located at that IRQ
+  - e.g., TLB shootdowns, Function call interrupts(INT ??), Rescheduling interrupts(spread workload to other processors by waking up it and run sched)
+
+#####/proc/$PID/stat
+  [pid proc manual](https://man7.org/linux/man-pages/man5/proc.5.html)
+  - #10-13 page faults
+  - #14 utime, #15 stime, #16 waited-for children time in user mode, #17 waited-for children time in kernel mode
+  - #20 num_threads
+  - #22 The time the process started after system boot
+  - #23 vsize Virtual memory size, #24 rss Resident Set Size
+  - #26-27 address of code area, stack area, `startstack` start address of its stack, #45-46 address of data area, #47 `start_brk` heap can expand, `kstkesp` current stack pointer ESP, `kstkeip` current instruction pointer EIP
+  - #31-34 signals status #38 exit signal to its parent
+  - #48-49 `arg_start` `arg_end`, #50-51 `env_start` `env_end`, #52 `exit_code` thread exit code
+
+#####/proc/net
+  - ????
+
+#####/proc/filesystems
+  available fs systems
+
+#####/proc/partitions
+  - major, minor, #blocks, name
+#####/proc/diskstats
+  Documentation/iostats.txt
+  - # of reads completed, # of reads merged, # of sectors read, # of milliseconds spent reading
+  - # of writes completed, # of writes merged, # of sectors written, # of milliseconds spent writing
+  - # of I/Os currently in progress, # of milliseconds spent doing I/Os
+
+#### sys fs
+#####/sys/devices/system/cpu/cpuX/
+  Documentation/ABI/testing/sysfs-devices-system-cpu
+  - topology: core_cpus, core_siblings, die_cpus_list
+  - crash_notes: crash_notes: the physical address of the memory that holds the	note of cpu#
+
+#####/sys/dev/block/XXX:YY
+  detailed information of a storage device
+  - stat, capability, mq, queue, power, trace
+
+#####/sys/class/net
+  -????
+
+#### socket
+  - Command goes through socket _AF_NETLINK_
+    - ip, bridge, nft (nftables)
+  - Command goes through socket _AF_INET_
+    - ethtool, iptables, ifconfig
+  - Command goes through socket _AF_UNIX_
+    - brctl
+
 ####Tracing
   stace, ltrace, ftrace, eBPF, mtrace
 
