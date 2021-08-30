@@ -16,12 +16,12 @@
   - CPU: uptime, ps, top, pidstat,  /proc /sys
   - memory: sysctl, /proc/memoryinfo, free, numactl
     - `/sys/devices/system/node/` for status, `/sys/kernel/mm/` for the features.
-  - network: make sure enter the right namespace, ip a:l:route, bridge/brctl, ethtool, iptables (nftables) ebtables, tc, ss (netlink), `/sys/class/net`, nc/socat, dig
+  - network: make sure enter the right namespace, ip a:l:route, bridge/brctl, ethtool, iptables (nftables), ebtables, tc, ss (netlink), `/sys/class/net`, nc/socat, dig
   - Cgroups: where, for what, for whom, current status
   - Namepces: `nsenter` `unshare` (`clone`),
 ####Monitoring
   - Utilization, Saturation, Error (dmesg, /var/log/, /sys/, journalctl/systemd),
-  - sar, iostat(/proc/diskstats, /proc/stat, ), vmstat (/proc/vmstat), mpstat, /proc /sys, perf ftrace eBPF,
+  - sar, iostat(/proc/diskstats, /proc/stat), vmstat (/proc/vmstat), mpstat, /proc /sys, perf ftrace eBPF,
   - process: prtstat(proc/$PID/stat), pidstat, pstree
 
 #### proc fs
@@ -56,13 +56,32 @@
   - #48-49 `arg_start` `arg_end`, #50-51 `env_start` `env_end`, #52 `exit_code` thread exit code
 
 #####/proc/net
-  - ????
+  - `dev`: RX, TX statistics
+  - `nf_conntrack` or `ip_conntrack`
+  - `route` `ipv6_route`: route table, IP in little endian?!
+  - `tcp` `tcp6` `udp` `udp6`: (Documentation/networking/proc_net_tcp.txt)[https://www.kernel.org/doc/Documentation/networking/proc_net_tcp.txt]
+  - `sockstat` `sockstat6`: stats in socket level
+  - `netlink`: sk, pid, inode
+  - `netstat`: detailed stats
+  - `softnet_stat`: Per CPU, #1 packet_process; #2 packet_drop; #3 time_squeeze; #8 cpu_collision; #9: received_rps; #10: flow_limit_count
+  - `fib_trie` `fib_triestat`: forwarding tables and their stats
+  - `dev_mcast`, `igmp`
+  - `arp`: ARP table
+
+
+#####/proc/sys
+  - core
+    - BPF settings, xfrm settings, flow limits
+  - ipv4 and ipv6: their Configurations
+  - netfilter: [Documentation/networking/nf_conntrack-sysctl.txt](https://www.kernel.org/doc/Documentation/networking/nf_conntrack-sysctl.txt)
+  - bridge: bridge configurations
 
 #####/proc/filesystems
   available fs systems
 
 #####/proc/partitions
   - major, minor, #blocks, name
+
 #####/proc/diskstats
   Documentation/iostats.txt
   - # of reads completed, # of reads merged, # of sectors read, # of milliseconds spent reading
@@ -70,6 +89,17 @@
   - # of I/Os currently in progress, # of milliseconds spent doing I/Os
 
 #### sys fs
+#####/sys/class/net
+  - $DEVNAME
+    - Configurations of the device, such as IP address, ifindex, mtu
+    - /statistics: rx and tx stats, including rx_bytes, rx_XXX_errors
+
+#####/sys/kernel
+  - cgroup
+  - debug: kprobes, tracing (ftrace)
+  - mm: hugepages, transparent_hugepage
+  - slab: configurations for each slab
+
 #####/sys/devices/system/cpu/cpuX/
   Documentation/ABI/testing/sysfs-devices-system-cpu
   - topology: core_cpus, core_siblings, die_cpus_list
@@ -79,14 +109,11 @@
   detailed information of a storage device
   - stat, capability, mq, queue, power, trace
 
-#####/sys/class/net
-  -????
-
 #### socket
   - Command goes through socket _AF_NETLINK_
-    - ip, bridge, nft (nftables)
+    - ip, bridge, nft (nftables), tc
   - Command goes through socket _AF_INET_
-    - ethtool, iptables, ifconfig
+    - ethtool, iptables, ifconfig, arp
   - Command goes through socket _AF_UNIX_
     - brctl
 
