@@ -12,17 +12,17 @@
 ###Executions:
 ####Examination:
   - System: uname, kernal configuration file (/boot/config), sysctl, lsmod, bootparam
-  - storage: mount, df, du, lsof(open /proc/$pid/fd, fdinfo), fuser (open /proc/$pid/fd, fdinfo), dumpe2fs, fdisk
+  - Storage: mount, df, du, lsof(open /proc/$pid/fd, fdinfo), fuser (open /proc/$pid/fd, fdinfo), dumpe2fs, fdisk
   - CPU: uptime, ps, top, pidstat,  /proc /sys
-  - memory: sysctl, /proc/memoryinfo, free, numactl
+  - Memory: sysctl, /proc/memoryinfo, free, numactl
     - `/sys/devices/system/node/` for status, `/sys/kernel/mm/` for the features.
-  - network: make sure enter the right namespace, ip a:l:route, bridge/brctl, ethtool, iptables (nftables), ebtables, tc, ss (netlink), `/sys/class/net`, nc/socat, dig
+  - Network: make sure enter the right namespace, ip a:l:route, bridge/brctl, ethtool, iptables (nftables), ebtables, tc, ss (netlink), `/sys/class/net`, nc/socat, dig
   - Cgroups: where, for what, for whom, current status
   - Namepces: `nsenter` `unshare` (`clone`),
 ####Monitoring
   - Utilization, Saturation, Error (dmesg, /var/log/, /sys/, journalctl/systemd),
-  - sar, iostat(/proc/diskstats, /proc/stat), vmstat (/proc/vmstat), mpstat, /proc /sys, perf ftrace eBPF,
-  - process: prtstat(proc/$PID/stat), pidstat, pstree
+  - sar, iostat(/proc/diskstats, /proc/stat), vmstat (/proc/vmstat), mpstat, /proc /sys, perf (syscall) ftrace eBPF,
+  - Process: prtstat(proc/$PID/stat), pidstat, pstree
 
 #### proc fs
 #####/proc/stat
@@ -109,7 +109,22 @@
   detailed information of a storage device
   - stat, capability, mq, queue, power, trace
 
-#### socket
+####/etc
+#####/etc/sysconfig
+  - configuration files of different services, such as init, sshd, iptables
+
+####logs
+  - /var/log
+    - message: serive system logs
+    - dmesg: kernel ring buffer
+    - daemon.log: background daemon log
+    - kern.log: kernel logs
+
+  - /dev/kmsg: kernel's printk buffer
+
+
+
+#### Tools using socket
   - Command goes through socket _AF_NETLINK_
     - ip, bridge, nft (nftables), tc
   - Command goes through socket _AF_INET_
@@ -194,17 +209,27 @@
 ### Network
 #### Protocols
 ##### TCP
-  - Connection-oriented: 3 way handshake for establish, SYNC x; SYNC/ACK, y/x+1; ACK y+1. 4 way handshake for termination
+  - Connection-oriented: 3 way handshake for establish, [SYNC:x]; [SYNC/ACK:y/x+1]; [ACK:y+1]. 4 way handshake for termination
   - In order: Sliding Window,
   - Streaming: MSS, URG/PUSH
-  - Reliable: retransmission for missing segment (duplicate ACKs) or ack-timeout, adaptive retransmission (RTT), flow control (Window Size), congestion control (QoS, congestion window > MSS)
+  - Reliable: retransmission for missing segment (duplicate ACKs) or ACK-timeout, adaptive retransmission (RTT), flow control (AdvertisedWindowSize), congestion control (QoS, `CongestionWindow` > MSS)
+  - Sliding Window Algorithm:
+    - SeqNum, ACKNum, AdvertiseWindow.
+    - `AdvertisedWindow = MaxRcvBuffer - ((NextByteExpected - 1) - LastByteRead)`
+    - _Zero Window Probes_ when `AdvertisedWindow = 0`
+    - Flags: UrgPrt, Push, Reset
+  - _MSS Maximum Segment Size_ _MTU_` - Headers`
+  - _Adaptive Retransmit_: Missing ACK, timeout, 2 estimated RTT
+  - _Selective Acknowledge SACK_ cumulative acknowledgment with received not contiguous segments in TCP options
 
 ##### UDP
   - Message-oriented. IPv4 UDP header checksum is optional, IPv6 mandatory. UDP cork.
 ##### Stream Control Transmission Protocol (SCTP)
   - Message-oriented reliable stream
 ##### ICMP
-
+  - RFC 792
+  - Header: type, code, checksum, payload
+  - Types: Echo Reply/Request; Destination Unreachable; Redirect Message; Router Advertisement/Router Solicitation; Time Exceeded; Parameter Problem;
 ##### MLPS
   - explicit routes using labels, a virtual circuit network from packet switch network.
 
@@ -244,6 +269,30 @@
   - GSO: Generic Segmentation Offload. segmentation just before driver's xmit queue
   - GRO: Generic Receive Offload. combining “similar enough” packets together to reduce CPU. any frame assembled by GRO should be segmented to create an identical sequence of frames using GSO
 
+#### Congestion control
+  - Connectionless Flows, soft state for flow
+  - Resource Allocations: Router-Centric versus Host-Centric; Reservation-Based versus Feedback-Based; Window Based versus Rate Based; Fairness
+  - Queuing Disciplines: FIFO with tail drop, Fair Queuing (multi-queues & Round Robin).
+  - Linux
+    - default pfifo_fast
+    - setting priorities: `setsockopt` with `SO_PRIORITY`; `tc filter`; `QoS` in package
+    - bfifo, pfifo, Stochastic Fair Queuing(hash bucket), Hierarchical Token Bucket (tokens as credits)
+  - TCP
+    - Additive Increase/Multiplicative Decrease: timeout `CongestionWindow =/ 2`; ACK `CongestionWindow = MSS * (MSS / CongestionWindow)`
+    - Slow Start: double `CongestionWindow` each _RTT_ until there is a loss
+    - `CongestionThreshold`: `CongestionWindow` value that results from multiplicative decrease. After reaching `CongestionThreshold`, `CongestionWindow` adds one package per _RTT_
+    - Quick Start: A Request rate in IP optioin of _SYNC_ package, if accpetable by routers.
+    - Fast Retransmit: 3 duplicate ACKs before retransmit. Possible long delay of Timeout-retranmit
+    - TCP CUBIC: large `latency*bandwidth` aka _long-fat_; regular interval of last congestion; a cubic function to adjust `CongestionWindow`; start fast, slow close to previous `CongestionWindow` then fast grow afterword.
+    - Congestion Avoidance
+      - DECbit in IP header (added by router, returned by RX back to TX)
+      - Random Early Dectection: router drops a package before potential congestion,
+      - Explicit Congestion Notification (ECN): Router notifies congestion in IP TOS (#1 bit ECN capable, #2 Congestion encountered), instead of package dropping (TX timeout or dup ACKs); `ECN-Echo` and `Congestion-Window-Reduced` in TPC header
+    - QoS
+      - Package classifying & scheduling
+
+#### SDN
+    - Google B4
 #### Key data struct
   - net_device: ` ->net_device_ops -> ndo_start_xmit ` `->netdev_rx_queue ` ` ->netdev_queue `
   - sk_buff: ` ->net_device ` `->sock ` head, data, tail, end
