@@ -147,7 +147,7 @@
 - `__kernel_vsyscall` bookkeeping for syscall
 ### Memory
 - userspace:
-  - Addressing: `cr3` -> PGD(Page Global Directory) -> Page Upper Directory -> Page Middle Directory -> PTE (Page Table Entry) -> Offset
+  - Addressing: `cr3` (x86 TLB flushing) -> PGD(Page Global Directory) -> Page Upper Directory -> Page Middle Directory -> PTE (Page Table Entry) -> Offset
   - Process memory image loading: ELF Program header, GNU linker `ld`
   - Segments: `fork` (COW), `clone` for threading, `exit`, `mmap`, `shmat`, `brk`; `mm_struct -> vm_area_struct`, `mm_struct -> pgd`, `vm_file -> f_dentry -> d_inode -> i_mapping`, `page -> address_space -> inode`
 - kernelspace:
@@ -286,7 +286,7 @@
     - TCP CUBIC: large `latency*bandwidth` aka _long-fat_; regular interval of last congestion; a cubic function to adjust `CongestionWindow`; start fast, slow close to previous `CongestionWindow` then fast grow afterword.
     - Congestion Avoidance
       - DECbit in IP header (added by router, returned by RX back to TX)
-      - Random Early Dectection: router drops a package before potential congestion,
+      - Random Early Detection: router drops a package before potential congestion,
       - Explicit Congestion Notification (ECN): Router notifies congestion in IP TOS (#1 bit ECN capable, #2 Congestion encountered), instead of package dropping (TX timeout or dup ACKs); `ECN-Echo` and `Congestion-Window-Reduced` in TPC header
     - QoS
       - Package classifying & scheduling
@@ -319,7 +319,7 @@
 ##### egress
   - `socket(AF_INET, SOCK_XXX, IPPROTO_XXX)`  `inetsw_array[] = {SOCK_STREAM IPPROTO_TCP inet_stream_ops, SOCK_DGRAM IPPROTO_UDP inet_dgram_ops}` `inet_dgram_ops = {inet_sendmsg, inet_recvmsg}` `udp_prot = {udp_sendmsg, udp_recvmsg}`
   - `sock->ops->sendmsg (inet_sendmsg) ==> sk->sk_prot->sendmsg (udp_sendmsg)`
-  - `upd_sendmsg`: IP options from sock, multicast?, `flowi4_init_output if not rtable found` `ip_make_skb` `ip_append_data ==> udp_push_pending_frames ==> udp_send_skb`
+  - `udp_sendmsg`: IP options from sock, multicast? if `sock->dst_entry`? use it: `flowi4_init_output; ip_route_output_flow ==> __ip_route_output_key/ip_route_output_key_hash` if not rtable found `ip_make_skb` `ip_append_data ==> udp_push_pending_frames ==> ip_finish_skb; udp_send_skb`
   - `udp_send_skb`:  `ip_send_skb  ==>  ip_local_out/__ip_local_out` `nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, dst_output)`  
   - `dst_output/skb_dst(skb)->output`: _protocol independent destination cache_ dst from rtable.
   - `ip_output`: `NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, ip_finish_output)`
@@ -328,7 +328,71 @@
   - `neigh_output`: `neigh_hh_output` with `hh_cache` or `neighbour->output arp_hh_ops={neigh_resolve_output} neighbor system ARP`
   - `neigh_hh_output`: `dev_queue_xmit`
   - `dev_queue_xmit` _TC_: `sch_handle_egress tcf_classify` `netdev_pick_tx`  
-  - `__dev_xmit_skb`: `qdisc_run_begin` `sch_direct_xmit __qdisc_run  qdisc_restart` `qdisc_run_end`
-  - `qdisc_restart`: `dequeue_skb` `sch_direct_xmit  dev_hard_start_xmit   xmit_one  netdev_start_xmit`  
+  - `__dev_xmit_skb`: `qdisc_run_begin` (q is running) `sch_direct_xmit` (hardware is not available or busy) `__qdisc_run  qdisc_restart` `qdisc_run_end`
+  - `qdisc_restart`: `dequeue_skb` `sch_direct_xmit  dev_hard_start_xmit   xmit_one(onl on skb)  netdev_start_xmit`  
   - `netdev_start_xmit`:  `net_device_ops->ndo_start_xmit` device finishes xmit and raises an IRQ, `napi_schedule ==> net_rx_action` clean up tx/rx queues in driver.
 #### eBPF & XDP
+
+
+#### Memory Management
+##### Memory hierarchy
+  - NUMA `pglist_data`:
+    - `zone` _ZONE HIGHMEM_ (not directly mapped to kernel address), _ZONE NORMAL_ (mapped to upper linear address), _ZONE DMA / ZONE_DMA32_ (ISA devices, architecture dependent)
+      - `struct free_area free_area[MAX_ORDER]` free areas of different sizes
+    - `struct page *node_mem_map`
+      - `struct list_head lru`
+			-	`struct address_space *mapping` `inode` associated
+    - `struct per_cpu_pageset __percpu *pageset` _Slab_
+
+  - `struct task_struct ` -> `struct mm_struct`
+    - `struct vm_area_struct *mmap` mmap of the process
+      - `struct file * vm_file` -> `struct inode` -> `struct address_space` -> `struct rb_root_cached	i_mmap`
+    - `pgd_t * pgd` PGD to PTE
+    - Red-Black tree for searching `struct vm_area_struct`
+
+
+#### Virtual File System
+##### superblock
+  - block size, max file, size,
+  - inode operation functions
+  - dirty inodes in superblock
+  - `struct dentry		*s_root`, `struct list_head	s_mounts`
+  - `struct hlist_node	s_instances`
+
+##### inode
+  - Metadata & Data segment (file context)
+  - Entries in directory inode: inode number; file/directory name
+  - Softlink: different inodes; Hardlink: same inode
+  - per cpu counts: nr_inodes; dirty inodes in superblock
+  - `struct address_space	*i_mapping`
+
+##### files_struct
+  - `struct file __rcu * fd_array[]` opened files
+  - `struct fdtable` using RCU to update the changes in fds
+
+##### file
+  - `struct path f_path` `struct path {struct vfsmount *mnt; struct dentry *dentry }`
+  - `struct inode		*f_inode`
+  - `struct address_space *f_mapping`
+
+##### dentry
+  - link between file name and inode
+  - represents a file or a directory
+  - `struct inode *d_inode	struct qstr d_name` `struct dentry *d_parent,  d_child, d_subdirs`
+
+##### vfsmount
+  - `struct vfsmount *mnt_parent`
+  - `struct dentry *mnt_mountpoint`
+  - `struct dentry *mnt_root` pointer to superblock
+  - `struct super_block *mnt_sb`
+
+##### Operations
+  - super_operations: inode ops, such as `alloc_inode, write_inode, dirty_inode ...`; fs ops `sync_fs, freeze_fs ...`
+  - inode_operations
+  - file_operations: open, read, write, mmap, fsync, flush
+  - dentry_operations
+  - address_space_operations: `readpage, writepage, set_page_dirty`
+
+#### Cache
+  - _Page cache_ cache operations in units of page (page size), mmap
+  - _Buffer cache_ cache operations in units of device block (block size)
