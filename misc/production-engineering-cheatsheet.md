@@ -184,21 +184,6 @@
 #### Resource Limits
 - `rlimit` `/proc/self/limits`
 
-### VFS
-#### Key structs
-- `superblock`: `dentry s_root` `s_inodes` `s_dirty` `file s_files` `block_device s_bdev`. For a particular file system.
-- `vfsmount`: `superblock` dentry of mountpoint.
-- `file`: `inode` `dentry`
-- `dentry`: mapping cache from filename to `inode`, otherwise, searching from root.
-- `inode`: `address_space`.
-  - `inode` states:
-    - Exists in memory but is not linked to any file and is not in active use.
-    - In memory and being used for one or more tasks representing a file.
-    - Its data contents have been changed, dirty.
-- `task_struct`: `files_struct` -> `file` `fdtable`
-- _page cache_ for memory mapping; _buffer cache_ the access units used are the individual blocks of a device and not whole pages.
-
-
 ### Container
 #### Namespaces
 - types: mnt, net, pid, user, ipc, cgroup, time, uts
@@ -380,6 +365,12 @@
   - represents a file or a directory
   - `struct inode *d_inode	struct qstr d_name` `struct dentry *d_parent,  d_child, d_subdirs`
 
+##### address space
+  - link between page cache and data resource
+  - `struct inode *host`
+  - `struct xarray		i_pages`
+  - Radix tree for the pages
+
 ##### vfsmount
   - `struct vfsmount *mnt_parent`
   - `struct dentry *mnt_mountpoint`
@@ -395,4 +386,18 @@
 
 #### Cache
   - _Page cache_ cache operations in units of page (page size), mmap
-  - _Buffer cache_ cache operations in units of device block (block size)
+  - _Buffer cache_ cache operations in units of device block (block size). `struct buffer_head`. `struct page -> prvate` links Page and Buffer cache
+
+
+## Instruction set architecture
+### x86-64  
+  - Registers: 16 * 64bit general purpose registers; 16 * 128bit SSE (Streaming SIMD Extensions) registers; 8 * 80bit floating registers
+  - Stack frame:
+    - 0(%rbp):previous %rbp of the caller; 8(%rbp): return address; 8n+16(%rbp): function arugments in 8 bytes
+    - -8(%rbp) --> 0(%rsp): local variables
+  - Register usage:
+    - `rax`: 1st return register;  `rbp`: caller-saved; `rcp`: 4th integer argument; `rdx`: 3rd integer argument / 2nd return register; `rsi rdi r8 r9` 2nd 1st 5th 6th argument; `r15` _GOT_ base pointer
+
+## Linker, Loader & ELF
+  - _GOT_ entry: symbol: address after dynamic loading
+  - _GOT.PLT_ entry: function name: address after dynamic loading. The first hit, the address is jumping back to GOT.PLT, then running loader to resolve the function's virtual address
