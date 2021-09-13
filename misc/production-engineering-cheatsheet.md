@@ -70,7 +70,7 @@
 
 
 #####/proc/sys
-  - core
+  - core (/proc/sys/net/core)
     - BPF settings, xfrm settings, flow limits
   - ipv4 and ipv6: their Configurations
   - netfilter: [Documentation/networking/nf_conntrack-sysctl.txt](https://www.kernel.org/doc/Documentation/networking/nf_conntrack-sysctl.txt)
@@ -186,8 +186,9 @@
 
 ### Container
 #### Namespaces
-- types: mnt, net, pid, user, ipc, cgroup, time, uts
-
+  - types: mnt, net, pid, user, ipc, cgroup, time, uts
+  - commands: `nsenter -t $PID $NS` `unshare $NS`
+  - system calls: `clone() setns() unshare()`
 #### Cgroups
 - types: cpu,cpuacct,  memory, hugetlb,  net_cls,net_prio,  pids,  devices, blkio, systemd, perf_event, freezer, rdma
 
@@ -316,9 +317,26 @@
   - `__dev_xmit_skb`: `qdisc_run_begin` (q is running) `sch_direct_xmit` (hardware is not available or busy) `__qdisc_run  qdisc_restart` `qdisc_run_end`
   - `qdisc_restart`: `dequeue_skb` `sch_direct_xmit  dev_hard_start_xmit   xmit_one(onl on skb)  netdev_start_xmit`  
   - `netdev_start_xmit`:  `net_device_ops->ndo_start_xmit` device finishes xmit and raises an IRQ, `napi_schedule ==> net_rx_action` clean up tx/rx queues in driver.
+
 #### eBPF & XDP
-
-
+  - System call: `int bpf(int cmd, union bpf_attr *attr, unsigned int size)`
+  - Registers:
+    - `r10` frame pointer
+    - `r0` bpf return value / function return value
+    - `r1` context argument of the BPF program
+    - `r1 - r5` arguments of the BPF helper `r6 - r9` reserve for helper
+  - 1M instruction limit
+  - BPF instruction
+    - 64 bit --- op:8, dst_reg:4, src_reg:4, off:16, imm:32
+    - op:8 --- code:4, source:1 and class:3
+  - Map
+    - data sharing between BPF programs, or kernal and userspace through fd
+    - in kernel, map is stored in file's private_data
+  - Object Pinning: BPF program or map at `/sys/fs/bpf/`
+  - Hardening:
+    - BPF interpreter image and JIT compiled image are locked as read-only pages
+    - retpoline between BPF calls
+    - constant blinding: `rnd ^ imm  ==>  ^rnd`
 #### Memory Management
 ##### Memory hierarchy
   - NUMA `pglist_data`:
@@ -391,13 +409,38 @@
 
 ## Instruction set architecture
 ### x86-64  
-  - Registers: 16 * 64bit general purpose registers; 16 * 128bit SSE (Streaming SIMD Extensions) registers; 8 * 80bit floating registers
+  - Registers: 16 * 64-bit general purpose registers; 16 * 128-bit SSE (Streaming SIMD Extensions) registers; 8 * 80b-it floating registers
   - Stack frame:
     - 0(%rbp):previous %rbp of the caller; 8(%rbp): return address; 8n+16(%rbp): function arugments in 8 bytes
     - -8(%rbp) --> 0(%rsp): local variables
   - Register usage:
-    - `rax`: 1st return register;  `rbp`: caller-saved; `rcp`: 4th integer argument; `rdx`: 3rd integer argument / 2nd return register; `rsi rdi r8 r9` 2nd 1st 5th 6th argument; `r15` _GOT_ base pointer
+    - `rax`: 1st return register;  `rbp`: caller-saved; `rcp`: 4th integer argument; `rdx`: 3rd integer argument / 2nd return register; `rsi rdi r8 r9` 2nd 1st 5th 6th integer argument; `r15` _GOT_ base pointer
+  - Address space
+      - 48 bit to 0x0000 7fff ffff ffff
+      - Text segment from 0x40 0000; Stack segment downward from 0x800 0000 0000
+  - _rFLAGS_: `CF` no carry; `ZF` No zero result; `OF` no overflow    
 
+### Arm64
+  - Registers
+    - 31 * 64-bit general purpose registers
+    - `XZR WZR` zero registers
+    - `sp` stack pointer, `PC` program counter (not general purpose registers)
+
+    - `MSR` instruction to read/write _system registers_ from/to general purpose register
+  - Register usage:
+      - `X0-X7` Parameter and Result Registers.
+      - `XR (X8)` to the memory allocated by the caller for returning the struct.
+      - `X9-X15` Corruptible Registers
+      - `IP0 (X16)` `IP1 (X17)` used by linkers to insert veneers between the caller and callee
+      - `X19-X28` Callee-saved Registers
+      - `FP (X29)` Frame
+      - `LR (X30)` _link register_ for function return addr
+  - Pipeline: IF, ID are in order execution; EX, MEM, WB are out of order execution
+  - System call:
+    - `SVC` Supervisor call: Used by an application to call the OS
+    - `HVC` Hypervisor call: Used by an OS to call the hypervisor
+    - `SMC` Secure monitor call: Used by an OS or hypervisor to call the EL3 firmware
+  - Endian: most of the Arm implements use little endian  
 ## Linker, Loader & ELF
   - _GOT_ entry: symbol: address after dynamic loading
   - _GOT.PLT_ entry: function name: address after dynamic loading. The first hit, the address is jumping back to GOT.PLT, then running loader to resolve the function's virtual address
