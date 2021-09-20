@@ -420,21 +420,33 @@
       - Text segment from 0x40 0000; Stack segment downward from 0x800 0000 0000
   - _rFLAGS_: `CF` no carry; `ZF` No zero result; `OF` no overflow    
 
-### Arm64
+### Arm
+#### Arm32
+  - Registers
+    - 16 * 32-bit general purpose integer registers
+  - Register usage:
+    - `X0-X3` Parameter `X0 X1` Result Registers
+    - `X11` Frame base
+    - `X12` used by linkers to insert veneers
+    - `X13` Stack pointer
+    - `X14` _link register_
+    - `X15` Program counter _PC_
+#### Arm64
   - Registers
     - 31 * 64-bit general purpose registers
     - `XZR WZR` zero registers
     - `sp` stack pointer, `PC` program counter (not general purpose registers)
-
     - `MSR` instruction to read/write _system registers_ from/to general purpose register
   - Register usage:
-      - `X0-X7` Parameter and Result Registers.
+      - `X0-X7` Parameter and `X0 X1` Result Registers.
       - `XR (X8)` to the memory allocated by the caller for returning the struct.
       - `X9-X15` Corruptible Registers
       - `IP0 (X16)` `IP1 (X17)` used by linkers to insert veneers between the caller and callee
       - `X19-X28` Callee-saved Registers
       - `FP (X29)` Frame
       - `LR (X30)` _link register_ for function return addr
+      - `TPIDRRO_EL0` CPU number
+      - The program counter and the stack pointer aren't indexed registers
   - Pipeline: IF, ID are in order execution; EX, MEM, WB are out of order execution
   - System call:
     - `SVC` Supervisor call: Used by an application to call the OS
