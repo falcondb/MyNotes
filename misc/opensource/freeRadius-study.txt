@@ -1,0 +1,110 @@
+#############      Key execution steps      ##############
+
+main()
+
+	// preparation work
+	radius_event_start
+		thread_pool_init  -> spawn_thread  -> pthread_create(request_handler_thread)  ->  ....   // service threads
+		listen_init
+			listen_bind
+				socket()
+				setsockopt()
+				bind()
+				listen() if TCP
+			add_sockets:
+				pthread_create(recv_thread)	   // add threads for different socket port
+		fr_event_fd_insert
+			kquenue()   add socket read triggers, no events are monitored
+		rad_suid_down_permanent
+			setup core dump
+
+	// real work starts here, read msgs, put msgs to queue and process them
+	radius_event_process ->	fr_event_loop
+		select / kqueue,  async socket monitoring 
+		el->readers.handler / el->events[i].udata.handler()
+			event_socket_handler() -> acct_socket_recv
+				recvfrom()  UDP  receive header and packet
+				request_receive   Radius state machine processing
+				request_queue_or_run  ->   
+					request_enqueue() -> sem_post(thread_pool.semaphore)  service threads will pick up and ## service thread ## section  , a waken up thead calls request_running 
+
+					||   request->process  process it by current thread
+				  	request_running   ->   rad_accounting  ->  process_accounting()
+						indexed_modcall -> modcall -> modcall_recurse (type == MOD_GROUP) -> modcall_child -> modcall_recurse (type == MOD_SINGLE) 
+						-> call_modsingle  ->  sp->modinst->entry->module->methods[component](sp->modinst->insthandle, request);
+
+
+
+##############    Service thread    ################
+Service thread starts ->  request_handler_thread   -> sem_wait(thread_pool.semaphore)  radius_pair_create   ->   radius_pair_create  
+					  -> self->request->process, which points to request_running
+
+
+#####   Kafka module call chain   ######
+MOD_group MOD_Children siblings. 
+modcallable is the base, modgroup, modchrild extend modcallable by puting modcallable at beginning, safe type cast.
+
+modules.c does all the management work, init, start, cleanup, load lib, load function pointers.
+
+### function address resolving and invocation ###
+Each module needs to define an instance of module_t with the module name "extern module_t <module name>". Inside the module_t, specify the function pointers to each phase.
+When load the module lib, dlsym the module_t instance by module name, then all the function pointers are resolved. During phases, just call the function pointers.
+
+
+
+
+
+
+
+#############      Key structs      ##############
+
+#### incoming socket related events  #####
+struct fr_event_list_t {
+	fr_heap_t	*times;
+	int		exit;
+	fr_event_status_t status;
+	struct timeval  now;
+	bool		dispatch;
+	int		num_readers;
+#ifndef HAVE_KQUEUE
+	int		max_readers;  //listened sockets for select()
+	bool		changed;
+#else
+	int		kq;     // kqueue id
+	struct kevent	events[FR_EV_MAX_FDS];    
+#endif
+	fr_event_fd_t	readers[FR_EV_MAX_FDS];
+};
+
+
+typedef struct fr_event_fd_t {
+	int			fd;
+	fr_event_fd_handler_t	handler;
+	void			*ctx;
+} fr_event_fd_t;
+
+
+
+struct rad_listen {
+	rad_listen_t *next;
+	RAD_LISTEN_TYPE	type;
+	int		fd;
+	char const	*server;
+	int		status;
+#ifdef WITH_TCP
+	int		count;
+	bool		dual;
+	rbtree_t	*children;
+	rad_listen_t	*parent;
+#endif
+	bool		nodup;
+	bool		synchronous;
+	uint32_t	workers;
+	rad_listen_recv_t recv;
+	rad_listen_send_t send;
+	rad_listen_encode_t encode;
+	rad_listen_decode_t decode;
+	rad_listen_print_t print;
+	CONF_SECTION const *cs;
+	void		*data;
+};

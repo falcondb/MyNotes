@@ -1,0 +1,136 @@
+#### execution flow study on librdkafka ####
+
+### rd_kafka initialization ###
+rd_kafka_new
+	rd_kafka_assignors_init: topic broker assignment strategies.
+	create a thread with rd_kafka_thread_main and rd_kafka_t
+	call rd_kafka_broker_add to create a idel ??? broker thread??? See more in section ### rd_kafka_brokers_add ###
+
+
+
+
+###  Kafka handler thread ###
+
+
+
+### rd_kafka_brokers_add ###
+	setup an instance of rd_kafka_broker_t, no broker IP/port yet
+	create a thread with rd_kafka_broker_thread_main and rd_kafka_broker_t
+
+
+rlm_kafka or rdkafka client : rd_kafka_produce -> rd_kafka_msg_new0 : place the new message into the queue
+
+rdkafka message batch send thread: rd_kafka_q_serve 
+
+rd_kafka_broker_thread_main -> rd_kafka_broker_producer_serve -> rd_kafka_toppar_producer_serve   
+	/* Attempt to fill the batch size, but limit our waiting to queue.buffering.max.ms and batch.num.messages. */
+ 	-> rd_kafka_broker_produce_toppar ->
+ 		rd_kafka_buf_push0
+ 		rd_kafka_buf_write_Message
+ 		rd_kafka_compress_MessageSet_buf
+ 		rd_kafka_broker_buf_enq_replyq
+ 			rd_kafka_broker_buf_enq2 -> rd_kafka_broker_buf_enq0 -> put in rkb->rkb_outbufs
+
+
+
+### the producer response receive service ###
+
+ rd_kafka_broker_thread_main -> rd_kafka_broker_producer_serve -> rd_kafka_broker_serve ->
+ 	rd_kafka_transport_io_serve
+ 		rd_kafka_transport_poll  -> poll
+ 		rd_kafka_transport_io_event
+ 			rd_kafka_transport_connected
+ 			rd_kafka_recv
+ 				rd_kafka_transport_recvmsg
+ 				process the received msg
+ 				rd_kafka_req_response
+ 					rd_kafka_buf_callback
+
+
+#### Main loop for Kafka handler thread  ######
+
+rd_kafka_thread_main -> 
+
+
+
+
+### thread for call back ####
+rd_kafka_thread_main -> rd_kafka_toppars_q_serve with rd_kafka_toppar_q_cb  -> rd_kafka_toppar_op_serve
+	-> rd_kafka_q_serve -> call the callback
+
+
+### IO with brokers thread ###
+rd_kafka_broker_thread_main -> rd_kafka_broker_ua_idle -> rd_kafka_broker_serve -> rd_kafka_transport_io_serve 
+	-> rd_kafka_transport_poll -> poll
+		rd_kafka_transport_io_event 
+			RD_KAFKA_BROKER_STATE_CONNECT : rd_kafka_transport_connected
+			RD_KAFKA_BROKER_STATE_UP || RD_KAFKA_BROKER_STATE_UPDATE : events & POLLIN ? rd_kafka_recv: events & POLLOUT? rd_kafka_send
+				* rd_kafka_recv ->
+					rd_kafka_broker_send
+					/* Put buffer on response wait list unless we are not expecting a response (required_acks=0). */
+					RD_KAFKA_OP_F_NO_RESPONSE ? rd_kafka_bufq_enq : rd_kafka_buf_callback
+
+				* rd_kafka_recv ->
+					rd_kafka_transport_recvmsg  ->  recv/ssl_read
+					rd_kafka_req_response -> rd_kafka_waitresp_find ; rd_kafka_buf_callback
+
+
+
+rd_kafka_broker_op_serve
+	RD_KAFKA_OP_PARTITION_LEAVE:
+		rd_kafka_toppar_fetch_decide(rktp, rkb, 1/*force remove*/);
+		TAILQ_REMOVE(&rkb->rkb_toppars, ...);
+		rktp->rktp_next_leader ?
+				 /* There is a next leader we need to migrate to. */
+                 rko->rko_type = RD_KAFKA_OP_PARTITION_JOIN;
+                 rd_kafka_q_enq(&rktp->rktp_next_leader->rkb_ops, rko);
+
+    RD_KAFKA_OP_NODE_UPDATE:
+    	update broker's name or ID, if ID is update, query new leader, rd_kafka_topic_leader_query0 -> rd_kafka_broker_metadata_req("leader query")
+    	change from RD_KAFKA_BROKER_STATE_UP to RD_KAFKA_BROKER_STATE_UPDATE
+
+    RD_KAFKA_OP_PARTITION_JOIN:
+    	! next lead ? rd_kafka_q_enq : TAILQ_INSERT_TAIL
+
+
+### rd_kafka_broker_metadata_req ###
+rd_kafka_broker_metadata_req -> rd_kafka_broker_metadata_req_op -> rd_kafka_MetadataRequest0 -> 
+rd_kafka_buf_write_kstr ; rd_kafka_buf_autopush /* pushes the write-buffer onto the iovec stack */
+
+
+
+thread 1: radiusd
+thread 2: Kafka handle thread  call back thread
+thread 3: Kafka broker idel thead ? broker ops 
+thread 4: Kafka broker thread by IP producer IO
+thread 5: performance log
+thread 6: create by the FR health check thread, rd_kafka_new
+thread 7: create by the FR health check thread, rd_kafka_new -> rd_kafka_broker_add
+
+thread ?: created by thread #2, Kafka handle thread, rd_kafka_op_handle_Metadata, add more brokers
+
+thread 8: create by the FR health check thread, rd_kafka_new -> rd_kafka_brokers_add
+thread 9: created by thread #2, Kafka handle thread, rd_kafka_op_handle_Metadata, add more brokers
+thread 10: create by the FR health check thread, rd_kafka_brokers_add
+thread 11-12: created by thread #6, Kafka handle thread, rd_kafka_op_handle_Metadata, add more brokers
+
+
+thread 7: broker ops
+thread 8: producer IO
+thread 9: broker producer IO
+
+
+
+#### study report on Nov 10th ####
+
+### Thread management ###
+rd_kafka_new: creates 1) a Kafka handler thread thread (rd_kafka_thread_main) to handle globle messages; 2) create a idle broker thread
+rd_kafka_brokers_add: for each broker node in the pass-in, creates a thread with rd_kafka_broker_thread_main and rd_kafka_broker_t
+
+everytime rd_kafka_new() is called. rd_kafka_new() will create these threads. rd_kafka_new() does not reuse these threads.
+
+### socket management ###
+Each rd_kafka_broker_thread_main thread, create a socket fd
+
+### message parsing ###
+Any rd_kafka_broker_thread_main thread recvmsg, first parse the message len and correction ID, and then read the remained bytes. If metadata, put it on the ops queue, then handler thread will pick up and process it as a global message.
