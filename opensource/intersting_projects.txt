@@ -1,2 +1,0 @@
-OceanBase	NewSQL from Alibaba	http://ossforum.jp/jossfiles/  https://github.com/alibaba/oceanbaseOcean%20Base%20Taobao.pdf
-pacemaker	Linux cluster resouce management http://clusterlabs.org/
