@@ -1,4 +1,4 @@
-[The Definitive KVM Linux Doc](https://www.kernel.org/doc/Documentation/virtual/kvm/api.txt)
+## [The Definitive KVM Linux Doc](https://www.kernel.org/doc/Documentation/virtual/kvm/api.txt)
 
 ### General description
 The ioctls belong to three classes:
@@ -29,7 +29,8 @@ The ioctls belong to three classes:
   - KVM_GET_VCPU_EVENTS / KVM_SET_VCPU_EVENTS: Gets currently pending exceptions, interrupts, and NMIs as well as related states of the vcpu
   - KVM_SET_TSS_ADDR: defines the physical address of a three-page region in the guest physical address space
   - KVM_GET_MP_STATE / KVM_SET_MP_STATE: the vcpu's current "multiprocessing state"
-  - KVM_IOEVENTFD: attaches or detaches an ioeventfd to a legal pio/mmio address
+  - KVM_IOEVENTFD: attaches or detaches an ioeventfd to a legal pio/mmio address. A guest write in the registered address will signal the
+provided event instead of triggering an exit. Bypass the hypervisor process and avoid context switch for performance reason.
 
 ### `kvm_run` structure
 Definition in [source code](https://elixir.bootlin.com/linux/v4.20.17/source/include/uapi/linux/kvm.h#L248)

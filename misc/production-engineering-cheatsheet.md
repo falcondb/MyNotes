@@ -1,16 +1,16 @@
-##trouble shooting methodology
-###Investigation:
+## trouble shooting methodology
+### Investigation:
 - Any possible relevant events, such as hardware, kernel, platform software upgrade, unexpected workload, network traffic congestion, operation errors.
 - Environment: own data center, cloud, customer system, network (network topology (fat tree), virtual, routing, tunneling), CPU/Memory/Network model, the runtime, bare metal, VM, container, hardware. Application characteristics (CPU intensive, data intensive, IO/network intensive), Application architecture. Application binary with symbol table, optimized.
 - Pattern: repeatable or one time, event period, one particular environment or almost everywhere.
 
-###Trouble shouting strategy and Plan:
+### Trouble shouting strategy and Plan:
 - The scope of the event: single machine or large scope
 - The computer resources: CPU, memory, network, storage, or configuration.
 - The software level: user space or application, kernel, hardware
 
-###Executions:
-####Examination:
+### Executions:
+#### Examination:
   - System: uname, kernal configuration file (/boot/config), sysctl, lsmod, bootparam
   - Storage: mount, df, du, lsof(open /proc/$pid/fd, fdinfo), fuser (open /proc/$pid/fd, fdinfo), dumpe2fs, fdisk
   - CPU: uptime, ps, top, pidstat,  /proc /sys
@@ -19,13 +19,13 @@
   - Network: make sure enter the right namespace, ip a:l:route, bridge/brctl, ethtool, iptables (nftables), ebtables, tc, ss (netlink), `/sys/class/net`, nc/socat, dig
   - Cgroups: where, for what, for whom, current status
   - Namepces: `nsenter` `unshare` (`clone`),
-####Monitoring
+#### Monitoring
   - Utilization, Saturation, Error (dmesg, /var/log/, /sys/, journalctl/systemd),
   - sar, iostat(/proc/diskstats, /proc/stat), vmstat (/proc/vmstat), mpstat, /proc /sys, perf (syscall) ftrace eBPF,
   - Process: prtstat(proc/$PID/stat), pidstat, pstree
 
 #### proc fs
-#####/proc/stat
+##### /proc/stat
   - CPU: iowait, irq, softirq
   - intr: counts of interrupts
   - ctxt: number of context switches across all CPUs
@@ -34,17 +34,17 @@
   - procs_running: number of processes currently running on CPUs
   - procs_blocked: number of processes currently blocked, waiting for I/O to complete
 
-#####/proc/uptime
+##### /proc/uptime
   - #1 up time in seconds, #2 idle time
 
-#####/proc/softirq
+##### /proc/softirq
   - Columns: softirq types, including NET_RX, NET_TX, BLOCK, TASKLET, SCHED, and RCU
 
-#####/proc/interrupts
+##### /proc/interrupts
   - #1 IRQ number, #2 event count, #3 device that is located at that IRQ
   - e.g., TLB shootdowns, Function call interrupts(INT ??), Rescheduling interrupts(spread workload to other processors by waking up it and run sched)
 
-#####/proc/$PID/stat
+##### /proc/$PID/stat
   [pid proc manual](https://man7.org/linux/man-pages/man5/proc.5.html)
   - #10-13 page faults
   - #14 utime, #15 stime, #16 waited-for children time in user mode, #17 waited-for children time in kernel mode
@@ -55,7 +55,7 @@
   - #31-34 signals status #38 exit signal to its parent
   - #48-49 `arg_start` `arg_end`, #50-51 `env_start` `env_end`, #52 `exit_code` thread exit code
 
-#####/proc/net
+##### /proc/net
   - `dev`: RX, TX statistics
   - `nf_conntrack` or `ip_conntrack`
   - `route` `ipv6_route`: route table, IP in little endian?!
@@ -69,51 +69,51 @@
   - `arp`: ARP table
 
 
-#####/proc/sys
+##### /proc/sys
   - core (/proc/sys/net/core)
     - BPF settings, xfrm settings, flow limits
   - ipv4 and ipv6: their Configurations
   - netfilter: [Documentation/networking/nf_conntrack-sysctl.txt](https://www.kernel.org/doc/Documentation/networking/nf_conntrack-sysctl.txt)
   - bridge: bridge configurations
 
-#####/proc/filesystems
+##### /proc/filesystems
   available fs systems
 
-#####/proc/partitions
+##### /proc/partitions
   - major, minor, #blocks, name
 
-#####/proc/diskstats
+##### /proc/diskstats
   Documentation/iostats.txt
-  - # of reads completed, # of reads merged, # of sectors read, # of milliseconds spent reading
-  - # of writes completed, # of writes merged, # of sectors written, # of milliseconds spent writing
-  - # of I/Os currently in progress, # of milliseconds spent doing I/Os
+  - \# of reads completed, # of reads merged, # of sectors read, # of milliseconds spent reading
+  - \# of writes completed, # of writes merged, # of sectors written, # of milliseconds spent writing
+  - \# of I/Os currently in progress, # of milliseconds spent doing I/Os
 
 #### sys fs
-#####/sys/class/net
+##### /sys/class/net
   - $DEVNAME
     - Configurations of the device, such as IP address, ifindex, mtu
     - /statistics: rx and tx stats, including rx_bytes, rx_XXX_errors
 
-#####/sys/kernel
+##### /sys/kernel
   - cgroup
   - debug: kprobes, tracing (ftrace)
   - mm: hugepages, transparent_hugepage
   - slab: configurations for each slab
 
-#####/sys/devices/system/cpu/cpuX/
+##### /sys/devices/system/cpu/cpuX/
   Documentation/ABI/testing/sysfs-devices-system-cpu
   - topology: core_cpus, core_siblings, die_cpus_list
   - crash_notes: crash_notes: the physical address of the memory that holds the	note of cpu#
 
-#####/sys/dev/block/XXX:YY
+##### /sys/dev/block/XXX:YY
   detailed information of a storage device
   - stat, capability, mq, queue, power, trace
 
-####/etc
-#####/etc/sysconfig
+#### /etc
+##### /etc/sysconfig
   - configuration files of different services, such as init, sshd, iptables
 
-####logs
+#### logs
   - /var/log
     - message: serive system logs
     - dmesg: kernel ring buffer
@@ -132,10 +132,10 @@
   - Command goes through socket _AF_UNIX_
     - brctl
 
-####Tracing
+#### Tracing
   stace, ltrace, ftrace, eBPF, mtrace
 
-####Sampling
+#### Sampling
   perf, ftrace, eBPF, tcpdump
 
 ## Concepts
@@ -453,6 +453,7 @@
     - `HVC` Hypervisor call: Used by an OS to call the hypervisor
     - `SMC` Secure monitor call: Used by an OS or hypervisor to call the EL3 firmware
   - Endian: most of the Arm implements use little endian  
+
 ## Linker, Loader & ELF
   - _GOT_ entry: symbol: address after dynamic loading
   - _GOT.PLT_ entry: function name: address after dynamic loading. The first hit, the address is jumping back to GOT.PLT, then running loader to resolve the function's virtual address
