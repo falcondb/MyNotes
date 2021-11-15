@@ -29,8 +29,8 @@ The ioctls belong to three classes:
   - KVM_GET_VCPU_EVENTS / KVM_SET_VCPU_EVENTS: Gets currently pending exceptions, interrupts, and NMIs as well as related states of the vcpu
   - KVM_SET_TSS_ADDR: defines the physical address of a three-page region in the guest physical address space
   - KVM_GET_MP_STATE / KVM_SET_MP_STATE: the vcpu's current "multiprocessing state"
-  - KVM_IOEVENTFD: attaches or detaches an ioeventfd to a legal pio/mmio address. A guest write in the registered address will signal the
-provided event instead of triggering an exit. Bypass the hypervisor process and avoid context switch for performance reason.
+  - KVM_IOEVENTFD: attaches or detaches an ioeventfd to a legal pio/mmio address. A guest write in the registered address will signal the provided event *instead of triggering an exit*. Bypass the hypervisor process and avoid context switch for performance reason. If `struct kvm_ioeventfd.datamatch` flag is set, the event will be signaled only if the written value to the registered address is equal to datamatch.
+  - KVM_IRQFD: Allows setting an eventfd to directly trigger a guest interrupt. kvm_irqfd.fd specifies the file descriptor to use as the eventfd and kvm_irqfd.gsi specifies the irqchip pin toggled by this event.  When an event is triggered on the eventfd, an interrupt is injected into the guest using the specified gsi pin.
 
 ### `kvm_run` structure
 Definition in [source code](https://elixir.bootlin.com/linux/v4.20.17/source/include/uapi/linux/kvm.h#L248)
@@ -47,5 +47,19 @@ Definition in [source code](https://elixir.bootlin.com/linux/v4.20.17/source/inc
 [Using the KVM API LWN.net](https://lwn.net/Articles/658511/)  
 An example [code](https://lwn.net/Articles/658512/) of using KVM APIs to create a simple VM
 Another example [code](https://github.com/dpw/kvm-hello-world)
+
+
+An example of registering hypervisor virtual addresses (HVA) to guest physical addresses (GPA)
+```
+mem = (struct kvm_userspace_memory_region) {
+		.slot			= slot_id,
+		.guest_phys_addr	= guest_phys,
+		.memory_size		= size,
+		.userspace_addr		= userspace_addr,
+	}
+
+ioctl(kvm->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem)
+
+```
 
 [An introduction to Clear Containers](https://lwn.net/Articles/644675/)

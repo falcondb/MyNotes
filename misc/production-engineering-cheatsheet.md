@@ -59,7 +59,7 @@
   - `dev`: RX, TX statistics
   - `nf_conntrack` or `ip_conntrack`
   - `route` `ipv6_route`: route table, IP in little endian?!
-  - `tcp` `tcp6` `udp` `udp6`: (Documentation/networking/proc_net_tcp.txt)[https://www.kernel.org/doc/Documentation/networking/proc_net_tcp.txt]
+  - `tcp` `tcp6` `udp` `udp6`: [Documentation/networking/proc_net_tcp.txt](https://www.kernel.org/doc/Documentation/networking/proc_net_tcp.txt)
   - `sockstat` `sockstat6`: stats in socket level
   - `netlink`: sk, pid, inode
   - `netstat`: detailed stats
@@ -145,6 +145,7 @@
 - `SYSCALL/SYSRET` 64-bit: `IA32_LSTAR` with the syscall handler. 6 registers for parameters. RAX for syscall number and return value. RCX for the resume IP after syscall.
 - `SYSENTER/SYSEXIT` IA-32: `IA32_SYSENTER_CS /EIP /ESP`
 - `__kernel_vsyscall` bookkeeping for syscall
+
 ### Memory
 - userspace:
   - Addressing: `cr3` (x86 TLB flushing) -> PGD(Page Global Directory) -> Page Upper Directory -> Page Middle Directory -> PTE (Page Table Entry) -> Offset
@@ -165,6 +166,7 @@
 - Memory ordering
   - Compile-time reordering: memory barrier `asm volatile("" ::: "memory")`
   - Runtime reordering:
+
 ### Process
 #### Process states
 - `ps` command to show state
@@ -176,6 +178,7 @@
 ##### Creation
   - `fork` / `vfork`: a full copy and COW
   - `clone`: shared
+
 #### Scheduler
   - the periodic scheduler (`scheduler_tick`)  and the main scheduler (`schedule()`) called directly in kernel or after returning from system calls.
   - Completely Fair Scheduling class
@@ -189,6 +192,7 @@
   - types: mnt, net, pid, user, ipc, cgroup, time, uts
   - commands: `nsenter -t $PID $NS` `unshare $NS`
   - system calls: `clone() setns() unshare()`
+
 #### Cgroups
 - types: cpu,cpuacct,  memory, hugetlb,  net_cls,net_prio,  pids,  devices, blkio, systemd, perf_event, freezer, rdma
 
@@ -210,12 +214,15 @@
 
 ##### UDP
   - Message-oriented. IPv4 UDP header checksum is optional, IPv6 mandatory. UDP cork.
+
 ##### Stream Control Transmission Protocol (SCTP)
   - Message-oriented reliable stream
+
 ##### ICMP
   - RFC 792
   - Header: type, code, checksum, payload
   - Types: Echo Reply/Request; Destination Unreachable; Redirect Message; Router Advertisement/Router Solicitation; Time Exceeded; Parameter Problem;
+
 ##### MLPS
   - explicit routes using labels, a virtual circuit network from packet switch network.
 
