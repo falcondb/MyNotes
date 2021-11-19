@@ -24,8 +24,8 @@
 > Binary Buddy Allocator
 
 > An array of free_area_t structs are maintained for each order that points to a linked list of blocks of pages
+
 ```
-# v5.0.9
 struct free_area {
 	struct list_head	free_list[MIGRATE_TYPES];
 	unsigned long		nr_free;
@@ -38,11 +38,13 @@ struct zone {
 
 
 #### Chapter 7  Non-Contiguous Memory Allocation
+
 > It is preferable when dealing with large amounts of memory to use physically contiguous pages. vmalloc() allocates non-contiguous physically memory.
 
 > between _VMALLOC_START_ and _VMALLOC_END_, at least VMALLOC_RESERVE in size. Each area is separated by at least one page to protect against overruns
 
 >non-contiguous memory is presented by
+
 ```
 struct vm_struct {
 	struct vm_struct	*next;
@@ -112,6 +114,20 @@ The rest need further studies, I can't follow at this time.
 
 >By default, free_compound_page() is used; all it does is return the memory to the page allocator. The hugetlbfs subsystem, though, uses free_huge_page() to keep its accounting up to date.
 
+[Five-level page tables](https://lwn.net/Articles/717293/)
+> page global directory (PGD);  page upper directory (PUD); page middle directory (PMD); page table entry (PTE); PGD, PUD, PMD are 9 bit indexed entry with 8 bytes wide (2^9 *8 = 2^12 = 4KB)
+
+>The middle levels can also have special entries indicating that they point directly to a (large) physical page rather than to a lower-level page table; that is how huge pages are implemented.
+
+48-bit VM address space or 128 TB may not large enough in the coming future. So,
+> add another level of indirection in the form of a fifth level of page tables. The new level, called the "P4D", is inserted between the PGD and the PUD. It will support 52-bit physical addresses and 57-bit virtual addresses. The new level also allows the creation of 512GB huge pages.
+
+>Anybody wanting to play with the new mode can do so now with QEMU, which understands five-level page tables.
+
+[Four-level page tables merged](https://lwn.net/Articles/117749/)
+
+[Reducing page structures for huge pages](https://lwn.net/Articles/839737/)
+
 
 [Memory Management](https://www.kernel.org/doc/html/latest/admin-guide/mm/index.html)
 HugeTLB Pages
@@ -136,6 +152,7 @@ Using Huge Pages
 ```
 mount -t hugetlbfs ...
 ```
+
 [libhugetlbfs](https://github.com/libhugetlbfs/libhugetlbfs)
 
 
@@ -226,6 +243,7 @@ Transparent Hugepage Support (THP)
 > Unless THP is completely disabled, there is khugepaged daemon that scans memory and collapses sequences of basic pages into huge pages
 
 > The THP behaviour is controlled via sysfs interface and using _madvise_ and _prctl_ system calls
+
 ```
 echo always >/sys/kernel/mm/transparent_hugepage/enabled
 echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
@@ -249,7 +267,8 @@ grep AnonHugePages /proc/PID/smaps
 egrep "thp|compact" /proc/vmstat
 ```
 
-> Transparent Hugepage Support maximizes the usefulness of free memory if compared to the reservation approach of hugetlbfs by allowing all unused memory to be used as cache or other movable (or even unmovable entities). It doesn’t require reservation to prevent hugepage allocation failures to be noticeable from userland. It allows paging and all other advanced VM features to be available on the hugepages. It requires no modifications for applications to take advantage of it.
+Transparent Hugepage Support maximizes the usefulness of free memory if compared to the reservation approach of hugetlbfs by allowing all unused memory to be used as cache or other movable (or even unmovable entities). It doesn’t require reservation to prevent hugepage allocation failures to be noticeable from userland. It allows paging and all other advanced VM features to be available on the hugepages. It requires no modifications for applications to take advantage of it.
+
 
 Userfaultfd [Userfaultfd Man page](https://man7.org/linux/man-pages/man2/userfaultfd.2.html)
 > Userfaults allow the implementation of on-demand paging from userland and more generally they allow userland to take control of various memory page faults
@@ -294,3 +313,50 @@ CPU families with weak hardware ordering:
 
 _Strong Memory Models_
 A strong hardware memory model is one in which every machine instruction comes implicitly with acquire and release semantics. As a result, when one CPU core performs a sequence of writes, every other CPU core sees those values change in the same order that they were written.
+
+[Memory: the flat, the discontiguous, and the sparse](https://lwn.net/Articles/789304/)
+_FLATMEM_
+  - The memory map remained a flat array that was neat and efficient, but it had a major drawback: it couldn't deal well with large holes in the physical address space.
+
+_DISCONTIGMEM_
+  - For NUMA machines
+  - The DISCONTIGMEM model introduced the notion of a memory node, which remains the basis of NUMA memory management. Each node carries an independent (well, mostly) memory-management subsystem with its own free-page lists, in-use page lists, least-recently-used (LRU) information, and usage statistics.
+  - The node data (struct pglist_data or pg_data_t for short) contains a node-specific memory map.
+  - `pfn_to_page()  page_to_pfn()`
+  - A weak point: memory hotplug and hot remove
+
+_SPARSEMEM_
+  - Abstracted the memory map as a collection of sections (`struct mem_section`) of arbitrary size defined by the architectures.
+  - The array of these sections is a meta-memory map which can be efficiently chopped at SECTION_SIZE granularity.
+  - Several high bits of the PFN are used to index into the sections array.
+  - _SPARSEMEM_EXTREME_ added a second dimension to the sections array and made this array, well, sparse.
+  - [SPARSEMEM_VMEMMAP](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=8f6aac419bd) (`/mm/sparse-vmemmap.c`)
+  - The entire memory map is mapped into a virtually contiguous area, but only the active sections are backed with physical pages.
+  - To support _persistent-memory devices_, the virtual memory map can use struct `vmem_altmap`, which will provide page structures in persistent memory
+  - In 2008, _SPARSEMEM_VMEMMAP_ became *the only supported memory model for x86-64*, as it was only slightly more expensive than _FLATMEM_ but more efficient than _DISCONTIGMEM_.
+
+[Reducing page structures for huge pages](https://lwn.net/Articles/839737/)
+
+[Physical Memory Model](https://www.kernel.org/doc/html/latest/vm/memory-model.html)
+
+Linux abstracts this diversity using one of the two memory models: FLATMEM and SPARSEMEM.
+
+All the memory models track the status of physical page frames using struct page arranged in one or more arrays. `pfn_to_page()` and `page_to_pfn()`
+
+_FLATMEM8_
+  - The simplest memory model is FLATMEM. This model is suitable for non-NUMA systems with contiguous, or mostly contiguous, physical memory.
+  - In the FLATMEM memory model, there is a global mem_map array that maps the entire physical memory.
+  - To allocate the mem_map array, architecture specific setup code should call free_area_init() function. Yet, the mappings array is not usable until the call to memblock_free_all() that hands all the memory to the page allocator.
+  - With FLATMEM, the conversion between a PFN and the struct page is straightforward: `PFN - ARCH_PFN_OFFSET` is an index to the `mem_map` array. The A`RCH_PFN_OFFSET` defines the first page frame number for systems with physical memory starting at address different from 0.
+
+_SPARSEMEM_
+  - SPARSEMEM is the most versatile memory model available in Linux and it is the only memory model that supports several advanced features such as hot-plug and hot-remove of the physical memory, alternative memory maps for non-volatile memory devices and deferred initialization of the memory map for larger systems.
+  - The SPARSEMEM model presents the physical memory as a collection of sections. A section is represented with `struct mem_section` that contains `section_mem_map` that is, logically, a pointer to an array of `struct page`s.
+  - The mem_section objects are arranged in a two-dimensional array called `mem_sections`.
+  - The architecture setup code should call `sparse_init()` to initialize the memory sections and the memory maps.
+  - With SPARSEMEM there are two possible ways to convert a PFN to the corresponding struct page - a _classic sparse_ and _sparse vmemmap_.
+  - The classic sparse encodes the section number of a page in page->flags and uses high bits of a PFN to access the section that maps that page frame. Inside a section, the PFN is the index to the array of pages.
+  - The sparse vmemmap uses a virtually mapped memory map to optimize pfn_to_page and page_to_pfn operations. There is a global struct page *vmemmap pointer that points to a virtually contiguous array of struct page objects. A PFN is an index to that array and the offset of the struct page from vmemmap is the PFN of that page.
+
+_ZONE_DEVICE_
+TO BE STUDIED  

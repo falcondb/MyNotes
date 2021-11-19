@@ -110,10 +110,55 @@ get_user_pages_remote
     start = (start + PAGE_SIZE) & PAGE_MASK
 
 get_user_pages
-  __gup_longterm_locked
-  kcalloc(nr_pages, sizeof(struct vm_area_struct *), GFP_KERNEL)
-    __get_user_pages_locked
-    check_and_migrate_cma_pages
+  __get_user_pages
+    // look up a page descriptor from a user-virtual address
+    page = follow_page_mask
+      pgd_offset
+      pud_offset
+      pmd_offset
+      follow_page_pte
+        // get the pte addr
+        pte_offset_map_lock
+
+        // gets the "struct page" associated with a pte
+        vm_normal_page
+          // the three memory models define pfn_to_page differently
+          pfn_to_page
+            // flat memory
+            mem_map + ((pfn) - ARCH_PFN_OFFSET)
+            // SPARSEMEM_VMEMMAP
+            vmemmap + (pfn) // vmemmap = __VMEMMAP_BASE_L4 =	0xffffea0000000000UL
+
+```
+
+```
+// GUP ping the user pages, take x86 as a reference
+__get_user_pages_fast
+  pgdp = pgd_offset
+  gup_pud_range
+    pud_offset
+    // check if huge page is enabled on this pud: pud_huge(); gup_huge_pud
+    gup_pmd_range  
+      pmd_offset
+      // check if huge page is enabled: pmd_huge(); gup_huge_pmd()
+      gup_pte_range
+        pte_offset_map
+          // x86-64
+          pte_offset_kernel
+            pmd_page_vaddr(*pmd) + pte_index(address);
+
+        // for each page in the addr range    
+        page = pte_page(pte)
+          pfn_to_page(pte_pfn(pte))
+            pfn_to_virt(pfn)
+              // kernel addr is directly mapping with a defined offset
+              __va((pfn) << PAGE_SHIFT)
+            virt_to_page()
+
+        // update the page struct array
+        pages[*nr] = page
+  // if there va is mapped to pfn, handle it here
+  get_user_pages
 ```
 
 
