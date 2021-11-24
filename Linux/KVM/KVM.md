@@ -1,9 +1,52 @@
 ## KVM
 
 ### `kvm_main.c`
+
+```
+// called by xmx_init() and smv_init(), their module init
+kvm_init
+  // with the kvm_x86_ops
+  kvm_arch_init
+
+  kvm_irqfd_init
+
+  kvm_arch_hardware_setup
+
+  register_cpu_notifier
+  register_reboot_notifier
+
+  kmem_cache_create
+
+  kvm_async_pf_init
+
+  misc_register
+  register_syscore_ops
+
+  kvm_preempt_ops.sched_in = kvm_sched_in
+	kvm_preempt_ops.sched_out = kvm_sched_out
+
+  kvm_init_debug
+  kvm_vfio_ops_init
+
+```
+
 ```
 kvm_dev_ioctl_create_vm
   kvm_create_vm
+    kvm_arch_alloc_vm
+    kvm_arch_init_vm
+    hardware_enable_all
+
+    kvm->memslots initialization
+    kvm->srcu     initialization
+    kvm->buses    initialization
+    kvm->mm = current->mm
+    kvm_eventfd_init
+    locks         initialization
+    kvm->devices  initialization
+    kvm_init_mmu_notifier
+
+    list_add(&kvm->vm_list, &vm_list)
 
   // ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
   kvm_coalesced_mmio_init
@@ -30,12 +73,16 @@ kvm_vm_ioctl
 /* Almost every key step is arch-dependent */
 kvm_vm_ioctl_create_vcpu
   kvm_arch_vcpu_create
+    kvm_x86_ops->vcpu_create()  
 
   create_vcpu_fd
     // vcpu is the file's private data
     anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu)
 
   kvm_arch_vcpu_setup
+    kvm_vcpu_reset
+    kvm_mmu_setup
+    vcpu_put
 
   kvm->vcpus[atomic_read(&kvm->online_vcpus)] = vcpu
 
@@ -100,6 +147,81 @@ kvm_vcpu_block
 ```
 
 ```
+kvm_set_memory_region
+  mutex
+  __kvm_set_memory_region
+    if KVM_MR_CREATE
+      kvm_arch_create_memslot
+        slot->arch.rmap[i] = kvm_kvzalloc()
+        slot->arch.lpage_info[i - 1] = kvm_kvzalloc()
+
+    if KVM_MR_DELETE || KVM_MR_MOVE
+        // make a copy of the old memslot using memcpy()
+        kmemdup
+
+        install_new_memslots
+          update_memslots
+            // larger comes first
+            sort_memslots
+
+          // increase the slot generation
+
+          kvm_arch_memslots_updated
+            kvm_mmu_invalidate_mmio_sptes
+
+        kvm_iommu_unmap_pages
+          // virt/kvm/iommu.c
+          kvm_iommu_put_pages
+            iommu_unmap __iommu_unmap
+              ops = (struct iommu_domain *)domain->ops
+              ops->unmap
+            kvm_unpin_pages
+              kvm_release_pfn_clean
+                put_page
+
+        kvm_arch_flush_shadow_memslot
+          kvm_mmu_invalidate_zap_all_pages
+            // Notify all vcpus to reload its shadow page table and flush TLB.
+            kvm_reload_remote_mmus
+              kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD)
+            kvm_zap_obsolete_pages
+              kvm_mmu_prepare_zap_page
+              kvm_mmu_commit_zap_page
+                kvm_flush_remote_tlbs
+                  kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH)
+                  cmpxchg(&kvm->tlbs_dirty, dirty_count, 0)
+
+    kvm_arch_prepare_memory_region
+      // for the obsolete KVM_SET_MEMORY_REGION
+      memslot->userspace_addr = vm_mmap
+
+    install_new_memslots
+    // release the MR of the old
+    kvm_arch_commit_memory_region(kvm, mem, &old, change)
+      vm_munmap(old->userspace_addr
+
+    if KVM_MR_CREATE) || KVM_MR_MOVE
+      kvm_iommu_map_pages
+        kvm_pin_pages
+          gfn_to_pfn_memslot
+        iommu_map
+          ops->map
+```
+
+```
+kvm_make_all_cpus_request
+  kvm_for_each_vcpu
+    kvm_make_request
+
+    // Run a function on a set of other CPUs. /kernel/smp.c  
+    smp_call_function_many smp_call_function_single
+      arch_send_call_function_ipi_mask
+        smp_ops.send_call_func_single_ipi
+      csd_lock_wait
+```
+
+
+```
 kvm_read_guest
   for each segment mapping from GPA to HVA page (head and tail trailing)
     kvm_read_guest_page
@@ -117,10 +239,6 @@ kvm_read_guest
         __copy_from_user
 ```
 
-```
-pfn_to_page
-
-```
 
 ```
 gfn_to_pfn_memslot  / gfn_to_pfn_memslot_atomic
@@ -149,4 +267,550 @@ gfn_to_pfn_memslot  / gfn_to_pfn_memslot_atomic
 
 ```
 
+
 ### x86
+
+#### Key data structures
+```
+struct kvm_vcpu_arch {
+	unsigned long regs[NR_VCPU_REGS];
+	u32 regs_avail;
+	u32 regs_dirty;
+
+	unsigned long cr0;
+	unsigned long cr0_guest_owned_bits;
+	unsigned long cr2;
+	unsigned long cr3;
+	unsigned long cr4;
+	unsigned long cr4_guest_owned_bits;
+	unsigned long cr8;
+	u32 hflags;
+	u64 apic_base;
+	struct kvm_lapic *apic;    /* kernel irqchip context */
+	int mp_state;
+
+  /*
+  	 * Paging state of the vcpu
+  	 *
+  	 * If the vcpu runs in guest mode with two level paging this still saves
+  	 * the paging mode of the l1 guest. This context is always used to
+  	 * handle faults.
+  	 */
+  	struct kvm_mmu *mmu;
+
+  	/* Non-nested MMU for L1 */
+  	struct kvm_mmu root_mmu;
+
+  	/* L1 MMU when running nested */
+  	struct kvm_mmu guest_mmu;
+
+  	/*
+  	 * Paging state of an L2 guest (used for nested npt)
+  	 *
+  	 * This context will save all necessary information to walk page tables
+  	 * of the an L2 guest. This context is only initialized for page table
+  	 * walking and not for faulting since we never handle l2 page faults on
+  	 * the host.
+  	 */
+  	struct kvm_mmu nested_mmu;
+
+  	/*
+  	 * Pointer to the mmu context currently used for
+  	 * gva_to_gpa translations.
+  	 */
+  	struct kvm_mmu *walk_mmu;
+
+  ...
+}
+
+struct kvm_mmu {
+	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long root);
+	unsigned long (*get_cr3)(struct kvm_vcpu *vcpu);
+	u64 (*get_pdptr)(struct kvm_vcpu *vcpu, int index);
+	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err, bool prefault);
+	void (*inject_page_fault)(struct kvm_vcpu *vcpu, struct x86_exception *fault);
+	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva, u32 access, struct x86_exception *exception);
+	gpa_t (*translate_gpa)(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access, struct x86_exception *exception);
+	int (*sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp);
+	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva);
+	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, u64 *spte, const void *pte);
+
+  hpa_t root_hpa;
+	int root_level;
+	int shadow_root_level;
+	union kvm_mmu_page_role base_role;
+
+  ...
+}
+
+```
+##### kvm_x86_ops
+```
+arch/x86/kvm/vmx/vmx.c
+
+static struct kvm_x86_ops vmx_x86_ops = {
+	.cpu_has_kvm_support = cpu_has_kvm_support,
+	.disabled_by_bios = vmx_disabled_by_bios,
+	.hardware_setup = hardware_setup,
+	.hardware_unsetup = hardware_unsetup,
+	.check_processor_compatibility = vmx_check_processor_compat,
+	.hardware_enable = hardware_enable,
+	.hardware_disable = hardware_disable,
+	.cpu_has_accelerated_tpr = report_flexpriority,
+
+	.vcpu_create = vmx_create_vcpu,
+	.vcpu_free = vmx_free_vcpu,
+	.vcpu_reset = vmx_vcpu_reset,
+
+	.prepare_guest_switch = vmx_save_host_state,
+	.vcpu_load = vmx_vcpu_load,
+	.vcpu_put = vmx_vcpu_put,
+
+	.update_db_bp_intercept = update_exception_bitmap,
+	.get_msr = vmx_get_msr,
+	.set_msr = vmx_set_msr,
+	.get_segment_base = vmx_get_segment_base,
+	.get_segment = vmx_get_segment,
+	.set_segment = vmx_set_segment,
+	.get_cpl = vmx_get_cpl,
+	.get_cs_db_l_bits = vmx_get_cs_db_l_bits,
+	.decache_cr0_guest_bits = vmx_decache_cr0_guest_bits,
+	.decache_cr3 = vmx_decache_cr3,
+	.decache_cr4_guest_bits = vmx_decache_cr4_guest_bits,
+	.set_cr0 = vmx_set_cr0,
+	.set_cr3 = vmx_set_cr3,
+	.set_cr4 = vmx_set_cr4,
+	.set_efer = vmx_set_efer,
+	.get_idt = vmx_get_idt,
+	.set_idt = vmx_set_idt,
+	.get_gdt = vmx_get_gdt,
+	.set_gdt = vmx_set_gdt,
+	.get_dr6 = vmx_get_dr6,
+	.set_dr6 = vmx_set_dr6,
+	.set_dr7 = vmx_set_dr7,
+	.sync_dirty_debug_regs = vmx_sync_dirty_debug_regs,
+	.cache_reg = vmx_cache_reg,
+	.get_rflags = vmx_get_rflags,
+	.set_rflags = vmx_set_rflags,
+	.fpu_deactivate = vmx_fpu_deactivate,
+
+	.tlb_flush = vmx_flush_tlb,
+
+	.run = vmx_vcpu_run,
+	.handle_exit = vmx_handle_exit,
+	.skip_emulated_instruction = skip_emulated_instruction,
+	.set_interrupt_shadow = vmx_set_interrupt_shadow,
+	.get_interrupt_shadow = vmx_get_interrupt_shadow,
+	.patch_hypercall = vmx_patch_hypercall,
+	.set_irq = vmx_inject_irq,
+	.set_nmi = vmx_inject_nmi,
+	.queue_exception = vmx_queue_exception,
+	.cancel_injection = vmx_cancel_injection,
+	.interrupt_allowed = vmx_interrupt_allowed,
+	.nmi_allowed = vmx_nmi_allowed,
+	.get_nmi_mask = vmx_get_nmi_mask,
+	.set_nmi_mask = vmx_set_nmi_mask,
+	.enable_nmi_window = enable_nmi_window,
+	.enable_irq_window = enable_irq_window,
+	.update_cr8_intercept = update_cr8_intercept,
+	.set_virtual_x2apic_mode = vmx_set_virtual_x2apic_mode,
+	.set_apic_access_page_addr = vmx_set_apic_access_page_addr,
+	.vm_has_apicv = vmx_vm_has_apicv,
+	.load_eoi_exitmap = vmx_load_eoi_exitmap,
+	.hwapic_irr_update = vmx_hwapic_irr_update,
+	.hwapic_isr_update = vmx_hwapic_isr_update,
+	.sync_pir_to_irr = vmx_sync_pir_to_irr,
+	.deliver_posted_interrupt = vmx_deliver_posted_interrupt,
+
+	.set_tss_addr = vmx_set_tss_addr,
+	.get_tdp_level = get_ept_level,
+	.get_mt_mask = vmx_get_mt_mask,
+
+	.get_exit_info = vmx_get_exit_info,
+
+	.get_lpage_level = vmx_get_lpage_level,
+
+	.cpuid_update = vmx_cpuid_update,
+
+	.rdtscp_supported = vmx_rdtscp_supported,
+	.invpcid_supported = vmx_invpcid_supported,
+
+	.set_supported_cpuid = vmx_set_supported_cpuid,
+
+	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
+
+	.set_tsc_khz = vmx_set_tsc_khz,
+	.read_tsc_offset = vmx_read_tsc_offset,
+	.write_tsc_offset = vmx_write_tsc_offset,
+	.adjust_tsc_offset = vmx_adjust_tsc_offset,
+	.compute_tsc_offset = vmx_compute_tsc_offset,
+	.read_l1_tsc = vmx_read_l1_tsc,
+
+	.set_tdp_cr3 = vmx_set_cr3,
+
+	.check_intercept = vmx_check_intercept,
+	.handle_external_intr = vmx_handle_external_intr,
+	.mpx_supported = vmx_mpx_supported,
+
+	.check_nested_events = vmx_check_nested_events,
+
+	.sched_in = vmx_sched_in,
+};
+```
+
+```
+/arch/x86/kvm/svm.c
+
+static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
+	.cpu_has_kvm_support = has_svm,
+	.disabled_by_bios = is_disabled,
+	.hardware_setup = svm_hardware_setup,
+	.hardware_unsetup = svm_hardware_unsetup,
+	.check_processor_compatibility = svm_check_processor_compat,
+	.hardware_enable = svm_hardware_enable,
+	.hardware_disable = svm_hardware_disable,
+	.cpu_has_accelerated_tpr = svm_cpu_has_accelerated_tpr,
+	.has_emulated_msr = svm_has_emulated_msr,
+
+	.vcpu_create = svm_create_vcpu,
+	.vcpu_free = svm_free_vcpu,
+	.vcpu_reset = svm_vcpu_reset,
+
+	.vm_alloc = svm_vm_alloc,
+	.vm_free = svm_vm_free,
+	.vm_init = avic_vm_init,
+	.vm_destroy = svm_vm_destroy,
+
+	.prepare_guest_switch = svm_prepare_guest_switch,
+	.vcpu_load = svm_vcpu_load,
+	.vcpu_put = svm_vcpu_put,
+	.vcpu_blocking = svm_vcpu_blocking,
+	.vcpu_unblocking = svm_vcpu_unblocking,
+
+	.update_bp_intercept = update_bp_intercept,
+	.get_msr_feature = svm_get_msr_feature,
+	.get_msr = svm_get_msr,
+	.set_msr = svm_set_msr,
+	.get_segment_base = svm_get_segment_base,
+	.get_segment = svm_get_segment,
+	.set_segment = svm_set_segment,
+	.get_cpl = svm_get_cpl,
+	.get_cs_db_l_bits = kvm_get_cs_db_l_bits,
+	.decache_cr0_guest_bits = svm_decache_cr0_guest_bits,
+	.decache_cr3 = svm_decache_cr3,
+	.decache_cr4_guest_bits = svm_decache_cr4_guest_bits,
+	.set_cr0 = svm_set_cr0,
+	.set_cr3 = svm_set_cr3,
+	.set_cr4 = svm_set_cr4,
+	.set_efer = svm_set_efer,
+	.get_idt = svm_get_idt,
+	.set_idt = svm_set_idt,
+	.get_gdt = svm_get_gdt,
+	.set_gdt = svm_set_gdt,
+	.get_dr6 = svm_get_dr6,
+	.set_dr6 = svm_set_dr6,
+	.set_dr7 = svm_set_dr7,
+	.sync_dirty_debug_regs = svm_sync_dirty_debug_regs,
+	.cache_reg = svm_cache_reg,
+	.get_rflags = svm_get_rflags,
+	.set_rflags = svm_set_rflags,
+
+	.tlb_flush = svm_flush_tlb,
+	.tlb_flush_gva = svm_flush_tlb_gva,
+
+	.run = svm_vcpu_run,
+	.handle_exit = handle_exit,
+	.skip_emulated_instruction = skip_emulated_instruction,
+	.set_interrupt_shadow = svm_set_interrupt_shadow,
+	.get_interrupt_shadow = svm_get_interrupt_shadow,
+	.patch_hypercall = svm_patch_hypercall,
+	.set_irq = svm_set_irq,
+	.set_nmi = svm_inject_nmi,
+	.queue_exception = svm_queue_exception,
+	.cancel_injection = svm_cancel_injection,
+	.interrupt_allowed = svm_interrupt_allowed,
+	.nmi_allowed = svm_nmi_allowed,
+	.get_nmi_mask = svm_get_nmi_mask,
+	.set_nmi_mask = svm_set_nmi_mask,
+	.enable_nmi_window = enable_nmi_window,
+	.enable_irq_window = enable_irq_window,
+	.update_cr8_intercept = update_cr8_intercept,
+	.set_virtual_apic_mode = svm_set_virtual_apic_mode,
+	.get_enable_apicv = svm_get_enable_apicv,
+	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
+	.load_eoi_exitmap = svm_load_eoi_exitmap,
+	.hwapic_irr_update = svm_hwapic_irr_update,
+	.hwapic_isr_update = svm_hwapic_isr_update,
+	.sync_pir_to_irr = kvm_lapic_find_highest_irr,
+	.apicv_post_state_restore = avic_post_state_restore,
+
+	.set_tss_addr = svm_set_tss_addr,
+	.set_identity_map_addr = svm_set_identity_map_addr,
+	.get_tdp_level = get_npt_level,
+	.get_mt_mask = svm_get_mt_mask,
+
+	.get_exit_info = svm_get_exit_info,
+
+	.get_lpage_level = svm_get_lpage_level,
+
+	.cpuid_update = svm_cpuid_update,
+
+	.rdtscp_supported = svm_rdtscp_supported,
+	.invpcid_supported = svm_invpcid_supported,
+	.mpx_supported = svm_mpx_supported,
+	.xsaves_supported = svm_xsaves_supported,
+	.umip_emulated = svm_umip_emulated,
+	.pt_supported = svm_pt_supported,
+
+	.set_supported_cpuid = svm_set_supported_cpuid,
+
+	.has_wbinvd_exit = svm_has_wbinvd_exit,
+
+	.read_l1_tsc_offset = svm_read_l1_tsc_offset,
+	.write_l1_tsc_offset = svm_write_l1_tsc_offset,
+
+	.set_tdp_cr3 = set_tdp_cr3,
+
+	.check_intercept = svm_check_intercept,
+	.handle_external_intr = svm_handle_external_intr,
+
+	.request_immediate_exit = __kvm_request_immediate_exit,
+
+	.sched_in = svm_sched_in,
+
+	.pmu_ops = &amd_pmu_ops,
+	.deliver_posted_interrupt = svm_deliver_avic_intr,
+	.dy_apicv_has_pending_interrupt = svm_dy_apicv_has_pending_interrupt,
+	.update_pi_irte = svm_update_pi_irte,
+	.setup_mce = svm_setup_mce,
+
+	.smi_allowed = svm_smi_allowed,
+	.pre_enter_smm = svm_pre_enter_smm,
+	.pre_leave_smm = svm_pre_leave_smm,
+	.enable_smi_window = enable_smi_window,
+
+	.mem_enc_op = svm_mem_enc_op,
+	.mem_enc_reg_region = svm_register_enc_region,
+	.mem_enc_unreg_region = svm_unregister_enc_region,
+
+	.nested_enable_evmcs = nested_enable_evmcs,
+	.nested_get_evmcs_version = NULL,
+
+	.need_emulation_on_page_fault = svm_need_emulation_on_page_fault,
+};
+
+```
+
+```
+/arch/x86/kvm/x86.c
+static const struct x86_emulate_ops emulate_ops = {
+	.read_gpr            = emulator_read_gpr,
+	.write_gpr           = emulator_write_gpr,
+	.read_std            = kvm_read_guest_virt_system,
+	.write_std           = kvm_write_guest_virt_system,
+  ... ...
+}
+```
+
+#### Key functions
+
+```
+kvm_arch_init
+  kvm_mmu_module_init
+
+  kvm_set_mmio_spte_mask
+
+  // OK, set the kvm_x86_ops
+  kvm_x86_ops = ops
+
+  kvm_init_msr_list
+
+  kvm_mmu_set_mask_ptes
+
+  kvm_timer_init
+
+  kvm_lapic_init
+```
+
+```
+kvm_arch_vcpu_ioctl_run
+  __vcpu_run
+    if KVM_MP_STATE_RUNNABLE && !vcpu->arch.apf.halted
+      vcpu_enter_guest
+        // see the section of vcpu_enter_guest
+    else
+      kvm_check_request(KVM_REQ_UNHALT, vcpu)
+      kvm_apic_accept_events
+
+    !! TO BE STUDIED
+
+```
+
+```
+vcpu_enter_guest
+  kvm_mmu_reload
+
+  kvm_x86_ops->prepare_guest_switch
+    // x86
+    vmx_save_host_state
+      // save the host segments, vmcs write
+
+  vcpu->mode = IN_GUEST_MODE
+
+  kvm_guest_enter
+    local_irq_save
+    guest_enter
+      guest_enter_irqoff
+        // vtime accounting
+
+
+  kvm_x86_ops->run
+    // x86
+    vmx_vcpu_run
+      // vmcs and general purpose registers
+
+  vcpu->mode = OUTSIDE_GUEST_MODE
+
+  kvm_x86_ops->handle_external_intr
+    // load the IDT and call the handler
+
+  kvm_guest_exit
+    // vtime accounting
+
+  kvm_x86_ops->handle_exit
+    // x86
+    vmx_handle_exit
+      kvm_vmx_exit_handlers[exit_reason](vcpu)
+
+```
+
+```
+// handlers for vmx exit reasons
+
+static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
+	[EXIT_REASON_EXCEPTION_NMI]           = handle_exception,
+	[EXIT_REASON_EXTERNAL_INTERRUPT]      = handle_external_interrupt,
+	[EXIT_REASON_TRIPLE_FAULT]            = handle_triple_fault,
+	[EXIT_REASON_NMI_WINDOW]	      = handle_nmi_window,
+	[EXIT_REASON_IO_INSTRUCTION]          = handle_io,
+	[EXIT_REASON_CR_ACCESS]               = handle_cr,
+	[EXIT_REASON_DR_ACCESS]               = handle_dr,
+	[EXIT_REASON_CPUID]                   = handle_cpuid,
+	[EXIT_REASON_MSR_READ]                = handle_rdmsr,
+	[EXIT_REASON_MSR_WRITE]               = handle_wrmsr,
+	[EXIT_REASON_PENDING_INTERRUPT]       = handle_interrupt_window,
+	[EXIT_REASON_HLT]                     = handle_halt,
+	[EXIT_REASON_INVD]		      = handle_invd,
+	[EXIT_REASON_INVLPG]		      = handle_invlpg,
+	[EXIT_REASON_RDPMC]                   = handle_rdpmc,
+	[EXIT_REASON_VMCALL]                  = handle_vmcall,
+	[EXIT_REASON_VMCLEAR]	              = handle_vmclear,
+	[EXIT_REASON_VMLAUNCH]                = handle_vmlaunch,
+	[EXIT_REASON_VMPTRLD]                 = handle_vmptrld,
+	[EXIT_REASON_VMPTRST]                 = handle_vmptrst,
+	[EXIT_REASON_VMREAD]                  = handle_vmread,
+	[EXIT_REASON_VMRESUME]                = handle_vmresume,
+	[EXIT_REASON_VMWRITE]                 = handle_vmwrite,
+	[EXIT_REASON_VMOFF]                   = handle_vmoff,
+	[EXIT_REASON_VMON]                    = handle_vmon,
+	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold,
+	[EXIT_REASON_APIC_ACCESS]             = handle_apic_access,
+	[EXIT_REASON_APIC_WRITE]              = handle_apic_write,
+	[EXIT_REASON_EOI_INDUCED]             = handle_apic_eoi_induced,
+	[EXIT_REASON_WBINVD]                  = handle_wbinvd,
+	[EXIT_REASON_XSETBV]                  = handle_xsetbv,
+	[EXIT_REASON_TASK_SWITCH]             = handle_task_switch,
+	[EXIT_REASON_MCE_DURING_VMENTRY]      = handle_machine_check,
+	[EXIT_REASON_EPT_VIOLATION]	      = handle_ept_violation,
+	[EXIT_REASON_EPT_MISCONFIG]           = handle_ept_misconfig,
+	[EXIT_REASON_PAUSE_INSTRUCTION]       = handle_pause,
+	[EXIT_REASON_MWAIT_INSTRUCTION]	      = handle_mwait,
+	[EXIT_REASON_MONITOR_INSTRUCTION]     = handle_monitor,
+	[EXIT_REASON_INVEPT]                  = handle_invept,
+	[EXIT_REASON_INVVPID]                 = handle_invvpid,
+};
+```
+
+
+```
+kvm_emulate_hypercall
+  kvm_pv_kick_cpu_op
+```
+
+
+```
+x86_emulate_instruction
+  if ! EMULTYPE_NO_DECODE
+    init_emulate_ctxt
+
+    x86_decode_insn
+      // emulate.c
+    retry_instruction
+
+    x86_emulate_insn
+      // emulate.c
+    if have_exception
+      inject_emulated_exception
+```
+
+
+```
+kvm_arch_vcpu_init
+  page = alloc_page
+  vcpu->arch.pio_data = page_address(page)
+
+  kvm_mmu_create
+    vcpu->arch.walk_mmu = &vcpu->arch.mmu
+    vcpu->arch.mmu.root_hpa = INVALID_PAGE
+    vcpu->arch.mmu.translate_gpa = translate_gpa
+    vcpu->arch.nested_mmu.translate_gpa = translate_nested_gpa
+
+    alloc_mmu_pages
+      page = alloc_page()
+      // Physical Address Extension, for 64-bit addr on x86
+      vcpu->arch.mmu.pae_root = page_address(page)
+
+  // local Adavanced PIC    
+  kvm_create_lapic
+
+  fx_init
+
+  // init vcpu->arch.XXXX
+
+  // asynchronous page fault
+  kvm_async_pf_hash_reset
+  // processor performance managment unit
+  kvm_pmu_init
+
+```
+
+```
+kvm_arch_vcpu_ioctl_translate
+  kvm_mmu_gva_to_gpa_system
+    vcpu->arch.walk_mmu->gva_to_gpa()
+```
+
+
+```
+// called by x86_emulate_instruction, when ctxt->have_exception after x86_emulate_insn()
+inject_emulated_exception
+  if PF_VECTOR
+    kvm_propagate_fault
+      if nested MMU
+        vcpu->arch.nested_mmu.inject_page_fault
+      else
+        vcpu->arch.mmu.inject_page_fault
+        // ****** TB continue
+
+  if ctxt->exception.error_code_valid
+    kvm_queue_exception_e
+
+  else
+    kvm_queue_exception
+```
+
+
+```
+kvm_write_guest_virt_system
+
+```

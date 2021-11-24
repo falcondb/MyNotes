@@ -126,7 +126,7 @@ get_user_pages
           pfn_to_page
             // flat memory
             mem_map + ((pfn) - ARCH_PFN_OFFSET)
-            // SPARSEMEM_VMEMMAP
+            // SPARSEMEM_VMEMMAP x86
             vmemmap + (pfn) // vmemmap = __VMEMMAP_BASE_L4 =	0xffffea0000000000UL
 
 ```

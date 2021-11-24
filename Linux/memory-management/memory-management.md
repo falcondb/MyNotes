@@ -16,7 +16,8 @@
 
 * logical addresses are not available for high memory, `struct page` is used to keep track of just about everything the kernel needs to know about physical memory. One `struct page` is each physical page on the system
   * `struct page.flags`: PG_locked, locked in memory; PG_reserved, prevents the memory management system from working with the page at all.
-
+  * x86-64, if `! CONFIG_DYNAMIC_MEMORY_LAYOUT` both _VMALLOC_START_ and _VMEMMAP_START_ are set to `__VMALLOC_BASE_L4 0xffffc90000000000UL`; if`CONFIG_DYNAMIC_MEMORY_LAYOUT`, _VMALLOC_START_ and _VMEMMAP_START_  are set to `vmalloc_base` dynamically.
+  * x86-set, _VMALLOC_START_ is set to `high_memory + VMALLOC_OFFSET (8MB)`, `high_memory` to `-128UL << 20` in `mm/init_32.c`
 
 ### Understanding the Linux Virtual Memory Manager by Mel Gorman
 
