@@ -148,7 +148,7 @@
 
 ### Memory
 - userspace:
-  - Addressing: `cr3` (x86 TLB flushing) -> PGD(Page Global Directory) -> Page Upper Directory -> Page Middle Directory -> PTE (Page Table Entry) -> Offset
+  - x86: VA to PA: `cr3` (x86 TLB flushing) 64 bits, 9 bits of VA as index in table, (51 to 12) pfn -> PGD(Page Global Directory) -> Page Upper Directory -> Page Middle Directory -> PTE (Page Table Entry) -> Offset. 32 bits, 10 bits of VA as index, (31 to 12) pfn
   - Process memory image loading: ELF Program header, GNU linker `ld`
   - Segments: `fork` (COW), `clone` for threading, `exit`, `mmap`, `shmat`, `brk`; `mm_struct -> vm_area_struct`, `mm_struct -> pgd`, `vm_file -> f_dentry -> d_inode -> i_mapping`, `page -> address_space -> inode`
 - kernelspace:
@@ -181,6 +181,7 @@
 
 #### Scheduler
   - the periodic scheduler (`scheduler_tick`)  and the main scheduler (`schedule()`) called directly in kernel or after returning from system calls.
+  - `TIF_NEED_RESCHED` `struct task_struct . struct thread_info . flag`
   - Completely Fair Scheduling class
     - virtual clock, red-black tree
 
@@ -411,7 +412,7 @@
 
 #### Cache
   - _Page cache_ cache operations in units of page (page size), mmap
-  - _Buffer cache_ cache operations in units of device block (block size). `struct buffer_head`. `struct page -> prvate` links Page and Buffer cache
+  - _Buffer cache_ cache operations in units of device block (block size). `struct buffer_head`. `struct page -> private` links Page and Buffer cache
 
 
 ## Instruction set architecture
@@ -425,7 +426,7 @@
   - Address space
       - 48 bit to 0x0000 7fff ffff ffff
       - Text segment from 0x40 0000; Stack segment downward from 0x800 0000 0000
-  - _rFLAGS_: `CF` no carry; `ZF` No zero result; `OF` no overflow    
+  - _rFLAGS_: `CF` no carry; `ZF` No zero result; `OF` no overflow; `TF` Trap flag; `0x0200 IF` interrupt enable
 
 ### Arm
 #### Arm32
