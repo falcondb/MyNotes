@@ -101,7 +101,7 @@ ifconfig veth0 10.1.1.2/24 up
 >When a new mount namespace is created, it receives a copy of the mount point list replicated from the namespace of the caller of clone() or unshare().
 >Mount points can be independently added and removed in each namespace
 
->[Shared subtrees](https://lwn.net/Articles/159077/)
+[Shared subtrees](https://lwn.net/Articles/159077/)
 >>Under the shared subtrees feature, each mount point is marked with a "propagation type", which determines whether mount points created and removed under this mount point are propagated to other mount points. There are four different propagation types:
 >>>MS_SHARED: This mount point shares mount and unmount events with other mount points that are members of its "peer group" propagate to the peer group, so that the mount or unmount will also take place under each of the peer mount points.
 

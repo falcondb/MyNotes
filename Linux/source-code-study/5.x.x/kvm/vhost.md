@@ -82,7 +82,7 @@ vhost_add_used_and_signal // similar to vhost_add_used_and_signal_n
       n = vq->num - start
       if n < count
         __vhost_add_used_n(vq, heads, n)
-        heads += n  // head is a pointerof vring_used_elem
+        heads += n  // head is a pointer of vring_used_elem
         count -= n
       __vhost_add_used_n(vq, heads, count)  
         start = vq->last_used_idx % vq->num

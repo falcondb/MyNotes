@@ -4,16 +4,14 @@
 
 * Disable interrupt delievery
 
-disable interrupt delivery for a specific interrupt line. Calling any of these functions may update the maskfor the specified irq in the programmable
-interrupt controller (PIC), thus disabling or enabling the specified IRQ across all processors.
+disable interrupt delivery for a specific interrupt line. Calling any of these functions may update the mask for the specified irq in the programmable interrupt controller (PIC), thus disabling or enabling the specified IRQ across all processors.
 ```
 void disable_irq(int irq);
 void disable_irq_nosync(int irq);
 void enable_irq(int irq);
 ```
 
-A call to `local_irq_save` disables interrupt delivery on the current processor after saving
-the current interrupt state into flags. `local_irq_disable` shuts off local interrupt delivery without saving the state
+A call to `local_irq_save` disables interrupt delivery on the current processor after saving the current interrupt state into flags. `local_irq_disable` shuts off local interrupt delivery without saving the state
 
 ```
 void local_irq_save(unsigned long flags);
@@ -41,6 +39,70 @@ Softirqs are determined statically at compile-time of the Linux kernel and the `
 
 `Workqueue` functions run in the context of a kernel process, but tasklet functions run in the software interrupt context. This means that workqueue functions must not be atomic as tasklet functions.
 
+[Understanding the Linux Kernel, 3rd Edition](https://www.oreilly.com/library/view/understanding-the-linux/0596005652/ch04s07.html)
+- raise_softirq
+  - local_irq_save
+  - Marks the softirq as pending by setting the bit corresponding to the index nr in the softirq bit mask of the local CPU
+  - if in_interrupt(), clean up and return
+  - wakeup_softirqd
+  - local_irq_restore
+
+- do_softirq when local_softirq_pending()
+    - if in_interrupt, return
+    - local_irq_save
+    - If the size of the thread_union structure is 4 KB, it switches to the soft IRQ stack
+    - __do_softirq
+    - local_irq_restore
+
+- __do_softirq
+    - Initializes the iteration counter to 10
+    - Copies the softirq bit mask of the local CPU (raise_softirq could be raised again when processing the current pending softirqs)
+    - local_bh_disable
+    - Clears the softirq bitmap of the local CPU, so that new softirqs can be activated
+    - local_irq_enable
+    - For each bit set in the pending local variable, it executes the corresponding softirq function.
+    - local_irq_disable
+    - Copies the softirq bit mask of the local CPU into the pending local variable and decreases the iteration counter one more time
+    - if pending is not zero, back to step 4
+    - If there are more pending softirqs, it invokes wakeup_softirqd
+    - Subtracts 1 from the softirq counter
+
+- ksoftirqd
+    ```
+    for(;;) {
+        set_current_state(TASK_INTERRUPTIBLE );
+        schedule( );
+        /* now in TASK_RUNNING state */
+        while (local_softirq_pending( )) {
+            preempt_disable();
+            do_softirq( );
+            preempt_enable();
+            cond_resched( );
+        }
+    }
+    ```
+- Tasklets
+    - tasklets are built on top of two softirqs named HI_SOFTIRQ and TASKLET_SOFTIRQ
+    - `state` of a tasklet: TASKLET_STATE_SCHED; TASKLET_STATE_RUN
+    - `tasklet_schedule` or `tasklet_hi_schedule`
+      - if TASKLET_STATE_SCHED, return. the tasklet has already been scheduled
+      - local_irq_save
+      - Adds the tasklet descriptor at the beginning of the list pointed to by tasklet_vec[n] or tasklet_hi_vec[n], where n denotes the logical number of the local CPU.
+      - raise_softirq_irqoff
+      - local_irq_restore
+
+    - `tasklet_hi_action` for HI_SOFTIRQ; `tasklet_action` for TASKLET_SOFTIRQ
+        - Disables local interrupts.
+        - Gets the logical number n of the local CPU.
+        - Stores the address of the list pointed to by tasklet_vec[n] or tasklet_hi_vec[n] in the list local variable.
+        - Puts a NULL address in tasklet_vec[n] or tasklet_hi_vec[n], thus emptying the list of scheduled tasklet descriptors.
+        - Enables local interrupts.
+        - For each tasklet descriptor
+          - if TASKLET_STATE_RUN, execution of the tasklet is deferred until no other tasklets of the same type are running on other CPUs
+          - Otherwise,  sets the flag
+          - Checks whether the tasklet is disabled by looking at the count field
+          - If the tasklet is enabled, it clears the TASKLET_STATE_SCHED flag and executes the tasklet function
+          
 [Understanding Linux Network Internals](https://www.amazon.com/Understanding-Linux-Network-Internals-Networking-ebook/dp/B0043EWV3S)
 
 | Function	| Description	|
@@ -48,7 +110,7 @@ Softirqs are determined statically at compile-time of the Linux kernel and the `
 |in_interrupt	| returns TRUE if the CPU is currently serving a hardware or software interrupt, or preemption is disabled.|
 | in_softirq  |  returns TRUE if the CPU is currently serving a software interrupt	|
 | in_irq in_irq | returns TRUE if the CPU is currently serving a hardware interrupt. |
-| softirq_pending | Returns TRUE if there is at least one softirq pending (i.e., scheduled for execution) for he CPU whose ID was passed as the input argument. |
+| softirq_pending | Returns TRUE if there is at least one softirq pending (i.e., scheduled for execution) for the CPU whose ID was passed as the input argument. |
 |local_softirq_pending | Returns TRUE if there is at least one softirq pending for the local CPU. |
 | __raise_softirq_irqoff| Sets the flag associated with the input softirq type to mark it pending. |
 |raise_softirq_irqoff| This is a wrapper around __raise_softirq_irqoff that also wakes up ksoftirqd when in_interrupt( ) returns FALSE.|

@@ -2,7 +2,7 @@
 [Control groups series by Neil Brow](https://lwn.net/Articles/604609/)
 
 A list of the cgroup series
-***
+
 [Control groups, part 1: On the history of process grouping](https://lwn.net/Articles/603762/)
 
 History of the concepts of process group, job, session.
@@ -19,7 +19,7 @@ ps -axgo comm,sess,pgrp
 
 [Network classifier cgroup, net_cls](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/net_cls.html)
 ```
-mount -t cgroup -onet_cls net_cls /sys/fs/cgroup/net_cls
+mount -t cgroup -o net_cls net_cls /sys/fs/cgroup/net_cls
 echo 0x100001 >  /sys/fs/cgroup/net_cls/0/net_cls.classid
 
 tc qdisc add dev eth0 root handle 10: htb
