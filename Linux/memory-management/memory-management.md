@@ -281,6 +281,8 @@ Userfaultfd [Userfaultfd Man page](https://man7.org/linux/man-pages/man2/userfau
 
 * Read the details here about how QEMU uses Userfaultfd
 
+[Memory management FAQ](https://landley.net/writing/memory-faq.txt)
+
 [Documentation for /proc/sys/vm/](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/vm.html)
 
 [DMA-API-HOWTO.txt](linux/Documentation/DMA-API-HOWTO.txt)

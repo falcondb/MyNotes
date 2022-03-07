@@ -1,6 +1,8 @@
-## VFIO
+## KVM
 
 ### [KVM MMU AT Linux Doc](https://elixir.bootlin.com/linux/v2.6.35/source/Documentation/kvm/mmu.txt)
+
+### [Architecture of the Kernel-based Virtual Machine (slides)](http://www.linux-kongress.org/2010/slides/KVM-Architecture-LK2010.pdf)
 
 
 ### [VFIO linux doc](https://www.kernel.org/doc/Documentation/vfio.txt)
