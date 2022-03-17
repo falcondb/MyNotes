@@ -363,3 +363,6 @@ _SPARSEMEM_
 
 _ZONE_DEVICE_
 TO BE STUDIED  
+
+
+[Linus explanation on `task_struct.active_mm`](https://android.googlesource.com/kernel/bcm/+/android-bcm-tetra-3.10-kitkat-wear/Documentation/vm/active_mm.txt)

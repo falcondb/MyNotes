@@ -230,44 +230,47 @@ struct task_struct {
 
 ```
 
+```
+struct rq {
+
+	struct cfs_rq		cfs;
+	struct rt_rq		rt;
+	struct dl_rq		dl;
+
+	struct list_head	leaf_cfs_rq_list;
+	struct list_head	*tmp_alone_branch;
+
+	struct task_struct	*curr;
+	struct task_struct	*idle;
+	struct task_struct	*stop;
+
+	struct mm_struct	*prev_mm;
+
+	struct root_domain		*rd;
+	struct sched_domain __rcu	*sd;
+	struct callback_head	*balance_callback;
+	struct list_head cfs_tasks;
+
+	struct llist_head	wake_list;
+```
+
+```
+struct sched_entity {
+	struct load_weight		load;
+	struct rb_node			run_node;
+	struct list_head		group_node;
+
+	u64				vruntime;
+
+	struct sched_entity		*parent;
+	/* rq on which this entity is (to be) queued: */
+	struct cfs_rq			*cfs_rq;
+	/* rq "owned" by this entity/group: */
+	struct cfs_rq			*my_q;
+};
+```
+
 ### sched/core.c
-__schedule() is the main scheduler function.
-
-The main means of driving the scheduler and thus entering this function are:
-
-  1. Explicit blocking: mutex, semaphore, waitqueue, etc.
-
-  2. TIF_NEED_RESCHED flag is checked on interrupt and userspace return
-     paths. For example, see arch
-
-     To drive preemption between tasks, the scheduler sets the flag in timer
-     interrupt handler scheduler_tick().
-
-  3. Wakeups don't really cause entry into schedule(). They add a
-     task to the run-queue and that's it.
-
-     Now, if the new task added to the run-queue preempts the current
-     task, then the wakeup sets TIF_NEED_RESCHED and schedule() gets
-     called on the nearest possible occasion:
-
-      - If the kernel is preemptible (CONFIG_PREEMPT=y):
-
-        - in syscall or exception context, at the next outmost
-          preempt_enable(). (this might be as soon as the wake_up()'s
-          spin_unlock()!)
-
-        - in IRQ context, return from interrupt-handler to
-          preemptible context
-
-      - If the kernel is not preemptible (CONFIG_PREEMPT is not set)
-        then at the next:
-
-         - cond_resched() call
-         - explicit schedule() call
-         - return from syscall or exception to user-space
-         - return from interrupt-handler to user-space
-
-WARNING: must be called with preemption disabled!
 
 * `schedule()`
 ```
@@ -275,9 +278,11 @@ schedule
   preempt_disable
   __schedule
     	local_irq_disable
+			rcu_note_context_switch
       rq_lock(rq, &rf)
       smp_mb__after_spinlock
       pick_next_task
+				// see its section
       context_switch
         see context switch section
     repeat if TIF_NEED_RESCHED is set in current thread
@@ -298,6 +303,7 @@ context_switch
   for different case:
     enter_lazy_tlb
     mmgrab
+			atomic_inc(mm->mm_count)
     membarrier_switch_mm
     ->mm and ->active_mm
     prepare_lock_switch
@@ -328,4 +334,56 @@ __wake_up_sync_key
 			list_for_each_entry_safe_from(curr, next, &wq_head->head, entry)
 				curr->func(curr, mode, wake_flags, key)
 
+```
+
+```
+switch_to
+	// arch/x86/entry/entry_64.S
+	__switch_to_asm
+		save callee-saved registers as ABI
+		copy to the target %rsp from %rdi the second parameter
+		jump to __switch_to() /arch/x86/kernel/process_64.c
+			save_fsgs
+			load_TLS
+			arch_end_context_switch
+
+			savesegment(es, prev->es)
+			savesegment(ds, prev->ds)
+
+			update_task_stack(next_p)
+			resctrl_sched_in()
+```
+
+
+```
+pick_next_task
+	// optimization: jump to CFS or IDLE class directly
+
+	// balance the tasks from the prev task's class
+		clss->balance()
+
+	for_each_class
+		 class->pick_next_task
+```
+
+
+### kernel/time/timer.c
+- timer triggered scheduling
+```
+tick_periodic tick-common.c / tick_sched_handle	tick-sched.c
+	update_process_times
+		run_local_timers
+		rcu_sched_clock_irq
+
+		scheduler_tick
+			// see its section
+```
+
+```
+sched_clock_tick
+	sched_clock_tick
+
+	rq->curr->sched_class->task_tick
+
+	trigger_load_balance
 ```
