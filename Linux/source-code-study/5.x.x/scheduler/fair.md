@@ -4,18 +4,18 @@
 ```
 struct sched_class fair_sched_class = {
 	.next			= &idle_sched_class,
-	.enqueue_task		= enqueue_task_fair,
-	.dequeue_task		= dequeue_task_fair,
-	.yield_task		= yield_task_fair,
+	.enqueue_task		= enqueue_task_fair,  // enters a runnable state
+	.dequeue_task		= dequeue_task_fair,  // enters a !runnable state
+	.yield_task		= yield_task_fair,      // dequeue and enqueue
 	.yield_to_task		= yield_to_task_fair,
 
-	.check_preempt_curr	= check_preempt_wakeup,
+	.check_preempt_curr	= check_preempt_wakeup,  // should preempt the current`
 
-	.pick_next_task		= pick_next_task_fair,
+	.pick_next_task		= pick_next_task_fair,     // next to run
 	.put_prev_task		= put_prev_task_fair,
-	.set_next_task          = set_next_task_fair,
+	.set_next_task          = set_next_task_fair, // after a change
 
-	.balance		= balance_fair,
+	.balance		= balance_fair,                    // rebalance
 	.select_task_rq		= select_task_rq_fair,
 	.migrate_task_rq	= migrate_task_rq_fair,
 

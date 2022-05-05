@@ -271,6 +271,8 @@ struct sched_entity {
 ```
 
 ### sched/core.c
+// Default task group
+`struct task_group root_task_group`
 
 * `schedule()`
 ```

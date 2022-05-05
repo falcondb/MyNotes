@@ -1,3 +1,5 @@
+[Compile build and install kernel](https://kernelnewbies.org/KernelBuild)
+
 [Prepare the environment for developing Linux kernel with qemu](https://medium.com/@daeseok.youn/prepare-the-environment-for-developing-linux-kernel-with-qemu-c55e37ba8ade)
 
 [Linux kernel + QEMU + gdb](http://nickdesaulniers.github.io/blog/2018/10/24/booting-a-custom-linux-kernel-in-qemu-and-debugging-it-with-gdb/)
@@ -27,3 +29,5 @@ gdb> target remote localhost:1234
 ```
 
 [QEMU GDB](https://qemu-project.gitlab.io/qemu/system/gdb.html)
+
+[Poke-a-hole and friends: Pahole](https://lwn.net/Articles/335942/)

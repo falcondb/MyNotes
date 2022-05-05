@@ -26,6 +26,8 @@
 
 [Explanation of the Linux-Kernel Memory Consistency Model](linux/tools/memory-model/Documentation/explanation.txt)
 
+[Linux-Kernel Memory Model](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4444.html)
+
 [A formal kernel memory-ordering model](https://lwn.net/Articles/718628/)
 
 [Who's afraid of a big bad optimizing compiler?](https://lwn.net/Articles/793253/)

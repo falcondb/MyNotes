@@ -102,7 +102,7 @@ Softirqs are determined statically at compile-time of the Linux kernel and the `
           - Otherwise,  sets the flag
           - Checks whether the tasklet is disabled by looking at the count field
           - If the tasklet is enabled, it clears the TASKLET_STATE_SCHED flag and executes the tasklet function
-          
+
 [Understanding Linux Network Internals](https://www.amazon.com/Understanding-Linux-Network-Internals-Networking-ebook/dp/B0043EWV3S)
 
 | Function	| Description	|

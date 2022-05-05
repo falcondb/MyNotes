@@ -20,3 +20,11 @@ Set in `/etc/default/grub`
 
 ### Commands
 `grub2-install /dev/sda` install grub in the MBR of the sda drive
+
+
+### libvirt
+In order to virsh to the console of the VM, the `/etc/default/grub` needs these configurations:
+  - `GRUB_CMDLINE_LINUX_DEFAULT="console=ttyS0,115200n8"`
+  - `GRUB_TERMINAL=serial`
+
+[Reference](https://bobcares.com/blog/virsh-console-not-working/)
