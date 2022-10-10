@@ -35,7 +35,6 @@
   - `try_to_wake_up` using `SD_BALANCE_WAKE`
 
 
-
 ### [batch/idle priority scheduling, SCHED_BATCH](https://lwn.net/Articles/3866/)
 
 
@@ -72,6 +71,15 @@
   - reset()??!!
   - `schedule()`
   - returing to user space from syscall, exception or interrupt
+  - When kernel preemption is enabled
+    - When preempt_enable() is invoked in the context of system call or exception interrupt, the system will be scheduled only when it is called at the *last time* (preempt_enable())
+    - In the interrupt context, when returning from the interrupt processing function to the preemptive context
+
+    - When it is in the period of interruption (top & bottom), scheduling is forbidden by the system, and then scheduling is allowed again after interruption.
+    - For exceptions, the system does not prohibit scheduling, that is, in the context of exceptions, the system is likely to schedule.
+
+
+### [A diagram of the relationships between key data structures in scheduler](https://programmer.group/images/article/fb45e188959cfb01a15d3e582570a4d8.jpg)
 
 
 ### [Digging into the Linux scheduler](https://deepdives.medium.com/digging-into-linux-scheduler-47a32ad5a0a8)

@@ -334,4 +334,10 @@ The kernel's full tickless mode, which is only now becoming ready for serious us
 
 Paul did not call into RCU to signal a quiescent state with every cond_resched() call; instead, that function was modified to increment a per-CPU counter and, using that counter, only call into RCU once for every 256 (by default) cond_resched() calls.
 
+[rcu: Add call_rcu_tasks](https://github.com/torvalds/linux/commit/8315f42295d2667a7f942f154b73a86fd7cb2227)
+Requested by Ftrace multiple tracer functions.
+
 [Linux RCU原理剖析（二）-渐入佳境](https://www.debugger.wiki/article/html/158774178648729)
+
+
+[Paul McKenney's blog: Stupid RCU Tricks: Is RCU Watching?](https://paulmck.livejournal.com/67073.html)

@@ -1,0 +1,200 @@
+\section{System Profiling}
+
+\begin{quote}
+    Program analysis tools are extremely important for understanding program behavior. Computer architects need such tools to evaluate how well programs will perform on new architectures. Software writers need tools to analyze their programs and identify critical pieces of code, ... \autocite{DBLP:conf/pldi/SrivastavaE94} \linebreak[2]
+
+                                                --- Amitabh Srivastava and Alan Eustace
+\end{quote}
+
+This survey starts from the first task in the computational thinking approach proposed and followed in the early papers \autocite{DBLP:journals/cacm/Wing06, DBLP:journals/micro/RenTMSRH10}, system profiling.
+
+
+\subsection{System Profiling Related Work}
+
+\begin{quote}
+他山之石 可以攻玉_
+\end{quote}
+
+In this section, system profiling related early work is studied. There are two key motivations driving us to study the early work published by academia and industry.
+\begin{itemize}
+  \item The first is learning the methodologies they proposed, the interesting profiling results and issues they found in their environments, the root causes they associated with the results and issues, and their solutions to the issues and the effectivenesses. If we plan to follow their footsteps, the knowledge and experience they shared could be a compass for our journey.
+  \item The second motivation is that building similar profiling systems as they proposed is a big engineering investment. In addition, history repeats itself and the software companies in the same industry typically faces similar issues. Their results and solutions could be taken directly if we are confident that we are suffer the same pain.
+\end{itemize}
+
+The remainders of this profiling section is organized as follows:
+\begin{itemize}
+  \item their profiling methodologies are summarized in different categories:
+  \begin{itemize}
+    \item workload classification and modeling, and experiment design;
+    \item metrics collection from different layers in the stack, from service layer, OS layer, to the microarchitecture layer. The metrics' usage will be also briefly discussed.
+    \item profiling patterns are examined with the target usages.
+  \end{itemize}
+\end{itemize}
+
+\subsubsection{Profiling Methodology}
+
+Profiling WSC systems is complex. A scientific and mathematical method can clear the mist ahead of us.
+
+\subsubsubsection{Workload Modeling}
+\begin{itemize}
+  \item Scale of the workload: stand-alone vs scale-out \autocite{DBLP:conf/asplos/FerdmanAKVAJKPAF12} \\
+    The workload characteristics (e.g., CPU bottlenecks, bandwidth utilization) are different in stand-alone workload and scale-out workload. Scale-out workload also incurs dispensable computational taxes compared to stand-alone workload. The service level objectives (SLOs) of scale-out workload are more strict. Thus, profiling in WSC scope will provide better observability on the services and the infrastructure. As a result, we will turn to be more confident in the issues identified from the profiling data.
+  \item Programming languages and frameworks built this services \autocite{DBLP:conf/asplos/FerdmanAKVAJKPAF12, DBLP:conf/iwqos/GuoCWDFMB19} \\
+    Programming language run-times and frameworks (thread library, MapReduce) optimize the computation, thus, their cost efficiency need to be analyzed.
+
+  \item Workload characteristic and classification \autocite{DBLP:journals/micro/KanevDHRMWB16,DBLP:journals/micro/RenTMSRH10,DBLP:conf/bigdataconf/LuYXXB17,DBLP:conf/cluster/DiKC12}\\
+  The workload can be classified from different characteristics, thus, profiling the workload should collect different metrics (will discuss in the next section), and the issues they suffer most are different.
+  The workload in the related work is classified from different characteristics:
+    \begin{itemize}
+      \item Life cycle of the workload: long-running service serving short lived requests (web), DAG-of-task services (MapReduce), batch-processing serving heavy requests (ML), media streaming
+       \hl{Reasons behind this type of classification:}
+          \begin{itemize}
+            \item The services are typically dynamically deployed in WSC as tenants which share the computation resources with other tenants. Due to the heterogeneity and variability of the machines and service characteristics and SLOs, scheduling them as tenants with reasonable utilization of the shared resources with restrictive SLOs in WSC is a work of art \autocite{DBLP:conf/asplos/FerdmanAKVAJKPAF12, DBLP:journals/micro/KanevDHRMWB16, DBLP:conf/iwqos/GuoCWDFMB19}.
+            \item Scheduling different types of workload in WSC follows different strategies. E.g., web services are typically load-balanced (with minimum scheduling policies). DAG services are more carefully scheduled and load-balanced in both temporal and spatial dimensions. Batch workload are scheduled with the goal of better resource utilization and throughput.
+            \item An interesting observation reported in early work in this dimension is that the trends of applications varied with interesting patterns, e.g., annual change of their memory footprints. With the application level profiling data, it could help associating the root cause with the issues observed, e.g., memory print growth and throughput degradation between releases.
+          \end{itemize}
+      \item Latency sensitive, throughput critical, power constraint
+        \hl{reasons behind this type of classification:}
+
+        The expectations and constraints on them are different, thus, their performance issues and the evaluations of the solutions should be considered differently.
+      \item CPU intensive, memory intensive, network intensive, IO intensive
+        \hl{reasons behind this type of classification:}
+
+        There are many computation resources utilized by services, considering all is complex. Focusing on the key resources which is more likely the bottom neck simplifies the root cause analysis.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Metrics Collection}
+
+When a complex system is studied, scientists typically observe the system using both telescope and microscope. With a telescope, it presents a clear image of the complex system without the noisy details. However, "The devil is in the detail". When the system needs to be understood thoroughly, a microscope shows the facts unanticipated or overlooked from the telescope. Understanding computer systems is similar. The system metrics could be collected from different scopes in order to understand the issues in a single layer of the system, or multiple layers collaboratively. Here summarizes the early metrics collection work  from the top layer to the bottom we are interested (DC layer is also interesting and related to service performance but beyond the scope of this study):
+\begin{itemize}
+  \item Service layer
+    \begin{itemize}
+      \item Service types (e.g., search, email, database), their distributions in DC, aggregated computation resource usages (CPU, memory, network) overtime, SLOs, etc \autocite{DBLP:conf/cloud/ReissTGKK12,DBLP:conf/bigdataconf/LuYXXB17}.
+       A view of the system from 10000 feet can help capacity planning and problem identification, etc.
+
+      \item Service latency, especially the tails, over time and on the nodes \autocite{DBLP:journals/cacm/DeanB13, DBLP:conf/nsdi/OusterhoutFBBB19}.
+        The service quality to end-users is extremely sensitive to the latency between root services all the ways down to the leaf services. The service latency is a critical indicator of issues in the system under the hood.
+
+      \item Service throughput, e.g, request per second (RPS)
+        Key metrics for service quality management and capacity planning, etc.
+
+      \item Hottest code path \autocite{DBLP:journals/micro/KanevDHRMWB16, DBLP:conf/iwqos/GuoCWDFMB19}
+        Solving an issue on the hottest code path, even if small, may bring in more values than solving a big issue on a cool code path \autocite{DBLP:conf/ispass/Yasin14}.
+
+      \item Service failures and fail-over events
+        \begin{itemize}
+          \item Building a failure free WSC is not practical today \autocite{DBLP:books/others/red, DBLP:conf/lisa/Hamilton07, DBLP:journals/cacm/DeanB13}. A failure on hardware, computer system or a software bug could make a ripple effect, further a catastrophic incident in services. The mostly adapted strategy of building fault tolerant systems is through replication and fail-over. However, due to the challenges of building fault tolerant systems, not-well-designed replication and fail-over policies could cause unexpected outcome as originally designed, consequently, a bigger disaster.
+          \item Monitoring any other events that could cause performance hiccups will also benefit \autocite{DBLP:conf/lisa/Hamilton07, DBLP:journals/cacm/DeanB13}.
+          \item Thus, monitoring these events brings many benefits, such as disaster control, root cause analysis, and optimization of the fault tolerant system.
+        \end{itemize}
+
+     \item Service traffic control
+        \begin{itemize}
+          \item Load-balancing
+            It helps us understand the workload spatial distributions. Potential issues, such as distribution skews of data or requests, can be identified when associated with other metrics, such as RPS, tail latencies and resource utilization.
+          \item Request scheduling
+            Similar to load-balancing, request scheduling profile shows the temporal distributions. Questionable scheduling policies at cluster scope or machine node scope can be identified when associated with other metrics.
+          \item Request queuing \autocite{DBLP:journals/cacm/DeanB13,}
+            Requests could be queued up at the leaf service nodes by their load-balancers and schedulers (or other reasons, e.g., lack of computation resources). Queued requests could be processed with random delays, thus with a long latency tail. The latency violation on a leaf could cause an availability issue of its upper service level. As a result, bad experience to the end user. In addition, queue length usually is a key indicator of scheduling or balancing problems \autocite{DBLP:journals/cacm/DeanB13,DBLP:conf/nsdi/KhalidRFXRFA18,DBLP:conf/usenix/HedayatiSSM19, DBLP:conf/conext/BarbetteKMK19}.
+          \item Data/request redundancies in services \autocite{DBLP:journals/cacm/DeanB13}
+            In failure tolerant and high available service systems, data and the requests to the data are replicated as their system design (for availability and performance). The costs and effectiveness of failure tolerance (also performance) of these replication strategies can be examined by an association of the service availability with the cost of computation resources.
+        \end{itemize}
+    \item Programming language run-time \\
+      Programming language and programming framework keep innovating in the past decades with the goals of making programming easier, more productive, less error-prone and better resource utilization \autocite{DBLP:books/aw/AhoSU86}. The advanced Programming language run-times and frameworks brings software engineering a lot of benefits. Unfortunately, a downside of the benefits is the complexity of understanding their roles in system performance. A crystal ball enable to collect the key metrics of these run-times or frameworks is indispensable in order to make them transparent to system analysis. Keeping the run-times as black boxes will make system analysis challenging and mislead the analysis when they play an role in the stack.
+
+      \begin{itemize}
+        \item Garbage collection events in language run-times \autocite{DBLP:books/wi/Jones2011}\\
+          Almost all of the software programs today dynamical allocate memory at run-time. Due to the variability of the workload on memory and the complexity of program logic (3rd libraries, function iterations, etc.), managing the memory allocations (heap memory) at the time writing the program code is error-prone, sub-optimal in memory management (e.g., internal and external fragmentation), resource utilization (e.g., recycling adjacent free objects in a batch mode saves the CPU cycles compared to recycling them individually), and system throughput (e.g., parallel garbage collector will not interrupt the service execution, thus better throughput).
+          The automated memory management and garbage collection shipped with the state of the art programming run-times (such as JVM and Golang) release the developers from facing the complexity of memory management and enable them to deliver more stable and optimized code. However, the memory management needs a crystal ball for performance trouble-shootings and its metrics should be monitored and analyzed \autocite{DBLP:conf/iwqos/GuoCWDFMB19}.
+        \item Scheduler in run-times
+          It has been discussed by the programming language researchers that adding a scheduler in run-time on the top of OS scheduler enables more optimization possibilities than without (the runtime knows the patterns of the threads, when blocked, less unnecessary traps to OS). Again, the run-time scheduler brings another blackbox to the stack \autocite{DBLP:conf/sosp/BehrenCZNB03, DBLP:conf/sosp/WelshCB01,DBLP:journals/tocs/AndersonBLL92}. Thus, profiling the scheduler in this layer is necessary if exists (such as Golang).
+      \end{itemize}
+
+  \item Operating system (OS)\\
+    The value of profiling OS events doesn't need much discussion space. Instead, this survey will discuss interesting findings and innovative techniques in the section focusing on OS with details.
+
+  \item Network \\
+    Network especially in WSC is also a complex system with multiple layers. Profiling it also needs telescope and microscope in hands. If we only focuse on subsystems or protocols strongly related to network performance.
+    \begin{itemize}
+      \item Throughput of the backbone network \autocite{DBLP:series/synthesis/2018Barroso}
+      \item Throughput at the ends (e.g., PPS in the network layers) \autocite{DBLP:conf/conext/BarbetteKMK19, DBLP:conf/usenix/HedayatiSSM19}
+      \item Congestion on the switches \autocite{DBLP:conf/sigcomm/AlizadehGMPPPSS10}
+      \item Taxes of communication: protocol processing (RPC), payload (de)serialization, encryption (TLS, IPsec), etc \autocite{DBLP:journals/micro/KanevDHRMWB16}.
+
+      \item Transport layers
+        \begin{itemize}
+          \item TCP
+            \begin{enumerate}
+              \item Receiver's buffer size, CWR, advertised window and others for follow control \autocite{DBLP:books/MKP/Larry2011} \\
+                Usage: traffic speed valve for receiver
+              \item Congestion window & its algorithm used  \autocite{DBLP:books/MKP/Larry2011,DBLP:conf/sigcomm/AlizadehGMPPPSS10}\\
+                Usage: traffic speed valve for congestion in the middle
+              \item Retransimission & timeout rate and its algorithm used \\
+                Usage: congestion control actions
+              \item RTT changes \\
+                Usage: traffic congestion indicator used by TCP congestion control
+              \item Special instructions (such as URG) \\
+                Usage: events could related to TCP abnormal events
+              \item TSO \\
+                Usage: batching techniques, better throughput with potential latency increase
+            \end{enumerate}
+      \item UDP \\
+        Segmentation offload: UFO, GSO \\
+        Usage: batching techniques, better throughput with potential latency increase
+      \item ICMP \\
+        Time exceeded, router advertisement \\
+        Usage: TTL expiration typically causes package drop. Also an indicator of bad routing decisions.
+    \end{itemize}
+   \item Network layer
+        \begin{itemize}
+        \item {Routing: NAT, filering} \\
+            Usage: routing investigation, virtualization overhead,
+        \item {ToS: DSCP and ECN fields} \\
+            Usage: Quality of Service (QoS) control, congestion control \autocite{DBLP:conf/sigcomm/AlizadehGMPPPSS10}
+        \item IP tunneling protocol for NFV, such as IP-IP, SIT. \\
+            Usage: Virtualization investigation and overhead quantification
+        \item IP options: source routing \\
+            Usage: Routing trouble-shootings
+        \end{itemize}
+   \item Link layer
+      VLAN (IEEE 802.1Q) \autocite{url/ieee802.1q} TCI:PCP for QoS, VID: VLAN ID
+   \item Device layer
+      \begin{itemize}
+        \item NAPI polling rate
+        \item OS package processing
+          For understanding overhead of travelling through the network stack, load-balancing between NICs and CPUs, etc.
+          In addition, the CPU cycles in processing network packages are not accounted by Linux Cgroup correctly \autocite{DBLP:conf/nsdi/KhalidRFXRFA18}.
+            \begin{enumerate}
+            \item RX TX SoftIRQ (triggering time, frequency, package processing rate, offloading rate to ksoftirqd, etc.)
+            \item ksoftirqd
+            \item RX IRQ
+            \item Receive \& Transmit Packet Steering (RPS, XPS)
+           \end{enumerate}
+        \item Queuing disciplines \\
+          Usage: QoS control, network bandwidth isolation for services or containers.
+      \end{itemize}
+
+  \item Microarchitecture
+    Latest work of profiling WSC at microarchitecture level \autocite{DBLP:conf/asplos/FerdmanAKVAJKPAF12, DBLP:journals/micro/KanevDHRMWB16} follows a Top-Down analysis method \autocite{DBLP:conf/ispass/Yasin14}. The early work shows the feasibility and efficiency of this method in identifying critical bottlenecks and utilization of cache hierarchy in CPU.
+    The analysis of the bottlenecks and resource utilizations not only guided their workload optimization (ILP vs TLP \autocite{DBLP:journals/micro/KanevDHRMWB16}), but more importantly provided input on microarchitecture design (e.g., DPU accelerator) for their workloads.
+    In this profiling section, only the metrics highly recommended for bottleneck investigation and optimization learned from early work are listed here. Interesting foudings from these metrics and their use cases will be discussed in later sections.
+
+    Refer to the paper \autocite{DBLP:conf/ispass/Yasin14} introducing the Top-Down analysis method using Intel PMU for all the proposed metrics with their analysis usages. Here only lists a subset of the metrics personally interested:
+    \begin{enumerate}
+      \item Frontend Bound, Bad Speculation, Retiring, Backend Bound
+      \item Fetch Latency & Bandwith Bound
+      \item Branch Mispredicts
+      \item Memory Bound, Bandwith, Latency
+      \item Core Bound
+      \item Cache Bound, L1, L2, LLC
+    \end{enumerate}
+
+    The cache hierarchy and memory are shared resources in a system for different services. When services are running concurrently in a system, in sequence, they will compete for the shared resources. OSs today do their best in isolating the shared resources between services. However, at the microarchitecture level, interferences are not totally eliminated (due to the complexity of balancing between throughput and utilization).
+    Service performance (e.g., throughput and latency) \autocite{DBLP:conf/asplos/FerdmanAKVAJKPAF12} and resource utilization (e.g., service co-location) could benefit from an interference monitoring and its analysis \autocite{DBLP:conf/isca/LoCGRK15}.
+
+  \item Memory and storage\\
+    Not studied extensively in this survey.
+\end{itemize}
+\end{itemize}
+\end{itemize}

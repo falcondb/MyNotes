@@ -209,3 +209,23 @@ READ it first every time working with cpuset!!!!
 > If a cpuset has its 'cpuset.cpus' modified, then each task in that cpuset will have its allowed CPU placement changed immediately. Similarly, if a task's pid is written to another cpuset's 'tasks' file, then its allowed CPU placement is changed immediately.
 
 > In summary, the memory placement of a task whose cpuset is changed is updated by the kernel, on the next allocation of a page for that task, and the processor placement is updated immediately.
+
+
+[Freezer Cgroup @kernel doc](https://www.kernel.org/doc/Documentation/cgroup-v1/freezer-subsystem.txt)
+
+> The freezer allows the checkpoint code to obtain a consistent image of the tasks by attempting to force the tasks in a cgroup into a quiescent state. Once the tasks are quiescent another task can walk /proc or invoke a kernel interface to gather information about the quiesced tasks. This also allows the checkpointed tasks to be migrated between nodes
+
+> Sequences of SIGSTOP and SIGCONT are not always sufficient for stopping and resuming tasks in userspace. Both of these signals are observable from within the tasks
+
+> While SIGSTOP cannot be caught, blocked, or ignored it can be seen by waiting or ptracing parent tasks. Any programs designed to watch for SIGSTOP and SIGCONT could be broken by attempting to use SIGSTOP and SIGCONT to stop and resume tasks.
+
+- freezer.state: effective state
+- freezer.self_freezing: THAWED or FROZEN
+- freezer.parent_freezing:
+
+```
+# mkdir /sys/fs/cgroup/freezer
+# mount -t cgroup -ofreezer freezer /sys/fs/cgroup/freezer
+# mkdir /sys/fs/cgroup/freezer/0
+# echo $some_pid > /sys/fs/cgroup/freezer/0/tasks
+```
