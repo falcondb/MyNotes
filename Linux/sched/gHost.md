@@ -1,3 +1,15 @@
+Ghost papers
+CPU scheduling challenge in coordinating userspace thread scheduler in runtime (Goland) and OS native thread scheduler. Ghost enables this coordination
+
+Ghost scheduler is asynchronous in contrast with synchronous SCX, offline scheduling decision making (ML)
+
+across multiple CPUs scheduling policy
+
+consist view of kernel scheduling events from userspace schedule making (decision with obsolete seq number fails)
+
+decisions in a transaction
+
+
 how to support Cgroup
 ghost + network stack
 ghost + BPF

@@ -105,7 +105,15 @@ abstract = {Computer Networks: A Systems Approach, designed for an advanced coll
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
+@Book{HillLieb01,
+  Title                    = {Introduction to Operations Research},
+  Author                   = {Frederick S. Hillier and Gerald J. Lieberman},
+  Publisher                = {McGraw-Hill},
+  Year                     = {2001},
 
+  Address                  = {New York, NY, USA},
+  Edition                  = {Seventh}
+}
 
 
 
@@ -344,6 +352,20 @@ abstract = {Computer Networks: A Systems Approach, designed for an advanced coll
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
+@article{DBLP:journals/spe/McKenney99,
+  author    = {Paul E. McKenney},
+  title     = {Differential Profiling},
+  journal   = {Softw. Pract. Exp.},
+  volume    = {29},
+  number    = {3},
+  pages     = {219--234},
+  year      = {1999},
+  url       = {https://doi.org/10.1002/(SICI)1097-024X(199903)29:3\<219::AID-SPE230\>3.0.CO;2-0},
+  doi       = {10.1002/(SICI)1097-024X(199903)29:3\<219::AID-SPE230\>3.0.CO;2-0},
+  timestamp = {Thu, 09 Apr 2020 17:14:25 +0200},
+  biburl    = {https://dblp.org/rec/journals/spe/McKenney99.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
 
 
 
@@ -462,6 +484,66 @@ abstract = {Computer Networks: A Systems Approach, designed for an advanced coll
   biburl    = {https://dblp.org/rec/conf/conext/BarbetteKMK19.bib},
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
+
+@inproceedings{DBLP:conf/sosp/MartyKAABCDDEGK19,
+  author    = {Michael Marty and
+               Marc de Kruijf and
+               Jacob Adriaens and
+               Christopher Alfeld and
+               Sean Bauer and
+               Carlo Contavalli and
+               Michael Dalton and
+               Nandita Dukkipati and
+               William C. Evans and
+               Steve D. Gribble and
+               Nicholas Kidd and
+               Roman Kononov and
+               Gautam Kumar and
+               Carl Mauer and
+               Emily Musick and
+               Lena E. Olson and
+               Erik Rubow and
+               Michael Ryan and
+               Kevin Springborn and
+               Paul Turner and
+               Valas Valancius and
+               Xi Wang and
+               Amin Vahdat},
+  editor    = {Tim Brecht and
+               Carey Williamson},
+  title     = {Snap: a microkernel approach to host networking},
+  booktitle = {Proceedings of the 27th {ACM} Symposium on Operating Systems Principles,
+               {SOSP} 2019, Huntsville, ON, Canada, October 27-30, 2019},
+  pages     = {399--413},
+  publisher = {{ACM}},
+  year      = {2019},
+  url       = {https://doi.org/10.1145/3341301.3359657},
+  doi       = {10.1145/3341301.3359657},
+  timestamp = {Tue, 02 Nov 2021 13:25:58 +0100},
+  biburl    = {https://dblp.org/rec/conf/sosp/MartyKAABCDDEGK19.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{DBLP:journals/cacm/CardwellCGYJ17,
+  author    = {Neal Cardwell and
+               Yuchung Cheng and
+               C. Stephen Gunn and
+               Soheil Hassas Yeganeh and
+               Van Jacobson},
+  title     = {{BBR:} congestion-based congestion control},
+  journal   = {Commun. {ACM}},
+  volume    = {60},
+  number    = {2},
+  pages     = {58--66},
+  year      = {2017},
+  url       = {https://doi.org/10.1145/3009824},
+  doi       = {10.1145/3009824},
+  timestamp = {Tue, 06 Nov 2018 12:51:42 +0100},
+  biburl    = {https://dblp.org/rec/journals/cacm/CardwellCGYJ17.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+
 
 
 
@@ -604,8 +686,50 @@ abstract = {Computer Networks: A Systems Approach, designed for an advanced coll
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
+@inproceedings{DBLP:conf/osdi/FriedROB20,
+  author    = {Joshua Fried and
+               Zhenyuan Ruan and
+               Amy Ousterhout and
+               Adam Belay},
+  title     = {Caladan: Mitigating Interference at Microsecond Timescales},
+  booktitle = {14th {USENIX} Symposium on Operating Systems Design and Implementation,
+               {OSDI} 2020, Virtual Event, November 4-6, 2020},
+  pages     = {281--297},
+  publisher = {{USENIX} Association},
+  year      = {2020},
+  url       = {https://www.usenix.org/conference/osdi20/presentation/fried},
+  timestamp = {Tue, 02 Feb 2021 08:06:01 +0100},
+  biburl    = {https://dblp.org/rec/conf/osdi/FriedROB20.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
 
 %BIB section for toolings
+@inproceedings{DBLP:conf/sosp/HumphriesNCWRDR21,
+  author    = {Jack Tigar Humphries and
+               Neel Natu and
+               Ashwin Chaugule and
+               Ofir Weisse and
+               Barret Rhoden and
+               Josh Don and
+               Luigi Rizzo and
+               Oleg Rombakh and
+               Paul Turner and
+               Christos Kozyrakis},
+  editor    = {Robbert van Renesse and
+               Nickolai Zeldovich},
+  title     = {ghOSt: Fast {\&} Flexible User-Space Delegation of Linux Scheduling},
+  booktitle = {{SOSP} '21: {ACM} {SIGOPS} 28th Symposium on Operating Systems Principles,
+               Virtual Event / Koblenz, Germany, October 26-29, 2021},
+  pages     = {588--604},
+  publisher = {{ACM}},
+  year      = {2021},
+  url       = {https://doi.org/10.1145/3477132.3483542},
+  doi       = {10.1145/3477132.3483542},
+  timestamp = {Thu, 21 Oct 2021 17:06:17 +0200},
+  biburl    = {https://dblp.org/rec/conf/sosp/HumphriesNCWRDR21.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
 
 %BIB section for computer architecture
 
@@ -647,4 +771,16 @@ abstract = {Computer Networks: A Systems Approach, designed for an advanced coll
   title = {IEEE 802.1Q},
   year = 2018,
   url = {https://standards.ieee.org/ieee/802.1Q/6844/},
+}
+
+@online{url/spec-benchmarks,
+  title = {SPEC's Benchmarks},
+  year = 2022,
+  url = {https://www.spec.org/benchmarks.html},
+}
+
+@online{url/database-tpc-benchmarks,
+  title = {Database Benchmarks},
+  year = 2022,
+  url = {https://www.tpc.org/information/benchmarks5.asp},
 }
