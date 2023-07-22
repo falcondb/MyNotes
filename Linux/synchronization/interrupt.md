@@ -67,6 +67,13 @@ Softirqs are determined statically at compile-time of the Linux kernel and the `
     - If there are more pending softirqs, it invokes wakeup_softirqd
     - Subtracts 1 from the softirq counter
 
+- points invokes `raise_softirq`
+  - `local_bh_enable`
+  - `do_IRQ` finishes, and call `irq_exit`
+  - With I/O APIC, when the `smp_apic_timer_interrupt` finishes
+  - In SMP, after `CALL_FUNCTION_VECTOR` interprocessor interrupt
+  - `ksoftirqd` is awakened.
+
 - ksoftirqd
     ```
     for(;;) {
@@ -119,3 +126,5 @@ Softirqs are determined statically at compile-time of the Linux kernel and the `
 | spin_lock_bh | Acquire and release a spinlock, respectively. Both functions disable and then reenable bottom halves and preemption during the operation. |
 | preempt_enable	| enables preemption, checks whether the counter is zero and forces a call to schedule( ) to allow any higher-priority task to run|
 | preempt_enable_no_resched | simply decrements a reference counter, which allows preemption to be re-enabled when it reaches zero. |
+
+[Software interrupts and realtime](https://lwn.net/Articles/520076/)

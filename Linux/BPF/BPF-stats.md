@@ -21,10 +21,3 @@
 bpf_enable_runtime_stats
 
 ```
-
-
-
-bpf(BPF_PROG_GET_NEXT_ID, {start_id=225, next_id=0, open_flags=0}, 112) = 0
-bpf(BPF_PROG_GET_FD_BY_ID, {prog_id=226, next_id=0, open_flags=0}, 112) = 3
-bpf(BPF_OBJ_GET_INFO_BY_FD, {info={bpf_fd=3, info_len=208, info=0x7fff592f3740}}, 112) = 0
-openat(AT_FDCWD, "/proc/self/fdinfo/3", O_RDONLY) = 4

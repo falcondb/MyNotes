@@ -1,0 +1,55 @@
+\documentclass[
+  journal=small,
+  manuscript=article-type,  % Use a - if you need a space e.g. "research-article"
+  year=2020,
+  volume=37,
+]{cup-journal}
+
+\usepackage{amsmath}
+\usepackage[nopatch]{microtype}
+\usepackage{booktabs}
+
+\title{Paper Survey of Service Tail Latency and Co-location in WSC}
+
+\author{Yifei Ma}
+\affiliation{Bytedance}
+\email[Yifei Ma]{yifeima@bytedance.com}
+
+\addbibresource{service-wsc-paper-survey.bib}
+
+
+\begin{document}
+
+\section{Prologue}
+\begin{quote}
+Computer Science is a science of abstraction, creating the right model for a problem and devising the appropriate mechanizable techniques to solve it.  \linebreak[2]
+--- Alfred Aho
+\end{quote}
+Innovations in the infrastructure of \textit{warehouse-scale computing systems (WSC)} \autocite{DBLP:series/synthesis/2018Barroso} is challenging and complex. It is scientific work that needs to present the complex systems in an abstract model, profiling the systems in match, identify the key problems to target on from the numbers, propose different possible solutions for the targeted problems and trade off the benefits and costs between the solutions, pick the most reasonable solutions, and finally prove the solutions and evaluate the solutions in real world.
+
+This paper survey introduces the recently published work (only a subset of all the work with limited time and human resource) in studying the service performance issues in the scale of WSC. The related work studied is re-organized in this survey's structure.
+
+The early work will be summarized at our best using a computational thinking approach \autocite{DBLP:journals/cacm/Wing06}: it starts with a section focusing on system classification, profiling methodology and metrics collection in order to understanding the complex WSC systems. The following section shows the interesting profiling results with their root cause analysis. Finally, a section presents the latest solutions proposed to address the root causes introduced in the previous section. This section also discusses the effectiveness and costs of these solutions.
+
+\pagebreak
+\tableofcontents
+
+\include{system-profiling.tex}
+
+\section{Interested profiling results and their root cause analysis}
+\subsection{Tail latency of Services}
+
+\subsection{Inferences between Co-location services}
+
+\pagebreak
+
+\section{Solutions to the root causes and their evaluations}
+\subsection{Tail latency of Services}
+
+\subsection{Inferences between Co-location services}
+
+\pagebreak
+\printbibliography
+
+
+\end{document}

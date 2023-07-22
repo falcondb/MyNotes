@@ -13,3 +13,7 @@
   - load balance (task migration) at 1) tick; 2) pick next; 3) waking up idle CPUs through IPI
   - task placement
   - active upmigration / misfit task
+
+
+## CFS
+### [Linux CFS and task group](https://mechpen.github.io/posts/2020-04-27-cfs-group/index.html)

@@ -31,3 +31,39 @@ gdb> target remote localhost:1234
 [QEMU GDB](https://qemu-project.gitlab.io/qemu/system/gdb.html)
 
 [Poke-a-hole and friends: Pahole](https://lwn.net/Articles/335942/)
+
+[Video: Linux Kernel Debugging: Going Beyond Printk Messages - Sergio Prado, Embedded Labworks](https://www.youtube.com/watch?v=NDXYpR_m1CU)
+
+* addr2line
+  - Should be `/usr/bin/addr2line`
+  - also can use `linux/scripts/faddr2line`
+
+
+* bootparam
+  - Example: `setenv bootargs $bootargs panic=3; boot`
+* PSTORE
+  - save the core dump after panic reboot
+  - mount it first
+* Kdump
+  - `kexec -d --type zImage -p $KIMGAGEPATH`
+  - reboot with the specified kernel image after a panic
+* KGDB [Using kgdb, kdb and the kernel debugger internals](https://www.kernel.org/doc/html/v4.14/dev-tools/kgdb.html)
+  - Basic
+    - a GDB server in the kerenl
+    - serial port or network (patch required)
+
+  - configure KGDB in kernel
+    - `CONFIG_FRAME_POINTER=y`
+    - `CONFIG_KGDB=y`
+    - `CONFIG_KGDB_SERIAL_CONSOLE=y`
+    - `CONFIG_KGDB_KDB=y`
+    - `CONFIG_KDB_KEYBOARD=y`
+    - `CONFIG_KGDB_HONOUR_BLOCKLIST=y`
+
+  - enable KGDB
+    - `echo ttymxc0 > /sys/module/kgdboc/parameters/kgdboc` `echo g > /proc/sysrq-trigger`
+
+ * Ftrace
+    - KernelShark: the GUI front end to `trace-cmmd`
+    - [Using KernelShark to analyze the real-time scheduler](https://lwn.net/Articles/425583/)
+    - [KernelShark Documentation](https://kernelshark.org/Documentation.html)

@@ -389,3 +389,14 @@ sched_clock_tick
 
 	trigger_load_balance
 ```
+
+
+
+### task IO wait
+
+io_schedule_timeout
+	io_schedule_prepare
+
+	schedule_timeout
+
+	io_schedule_finish

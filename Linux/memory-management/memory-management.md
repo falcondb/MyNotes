@@ -364,5 +364,20 @@ _SPARSEMEM_
 _ZONE_DEVICE_
 TO BE STUDIED  
 
+[The zsmalloc allocator](https://lwn.net/Articles/477067/)
+  - packing objects into a new type of compound page where the component pages are not physically contiguous.
+  - conditions:
+    - Code using this allocator must not require physically-contiguous memory,
+    - Objects must be explicitly mapped before use,
+    - Objects can only be accessed in atomic context.
+
+  - Allocating memory from a memory pool created early
+  - Within a zspage, objects are packed from the beginning, and may cross the boundary between pages. The cookie returned from zs_malloc() is a combination of a pointer to the page structure for the first physical page and the offset of the object within the zspage.
+      - (1) mapping it with kmap_atomic() if the object fits entirely within one physical page,
+      - (2) assigning a pair of virtual addresses if the object crosses a physical page boundary
+
+[A reworked contiguous memory allocator](https://lwn.net/Articles/447405/)
+
+[Contiguous memory allocation for drivers](https://lwn.net/Articles/396702/)
 
 [Linus explanation on `task_struct.active_mm`](https://android.googlesource.com/kernel/bcm/+/android-bcm-tetra-3.10-kitkat-wear/Documentation/vm/active_mm.txt)
